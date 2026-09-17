@@ -18,6 +18,11 @@ class CachedImage extends StatefulWidget {
   final Duration fadeInDuration;
   final CacheCategory category;
 
+  /// 按显示宽度解码（逻辑像素）：内部乘以 devicePixelRatio 换算为物理像素，
+  /// 避免用原始大图解码小缩图造成显存与光栅开销。
+  /// 传 null 时按原始分辨率解码（默认，保持既有行为）。
+  final double? decodeWidth;
+
   const CachedImage({
     super.key,
     required this.imageUrl,
@@ -29,6 +34,7 @@ class CachedImage extends StatefulWidget {
     this.borderRadius,
     this.fadeInDuration = const Duration(milliseconds: 300),
     this.category = CacheCategory.other,
+    this.decodeWidth,
   });
 
   @override
@@ -126,6 +132,12 @@ class _CachedImageState extends State<CachedImage>
 
   @override
   Widget build(BuildContext context) {
+    // 显示多宽就解码多宽：解码目标（物理像素）= 显示宽度 × 像素比
+    final int? cacheWidth = widget.decodeWidth == null
+        ? null
+        : (widget.decodeWidth! * MediaQuery.devicePixelRatioOf(context))
+            .round();
+
     Widget child;
 
     if (_isLoading) {
@@ -140,6 +152,7 @@ class _CachedImageState extends State<CachedImage>
           widget.imageUrl,
           width: widget.width,
           height: widget.height,
+          cacheWidth: cacheWidth,
           fit: widget.fit,
           errorBuilder: (context, error, stackTrace) {
             return widget.errorWidget ?? _buildErrorWidget(context);
@@ -153,6 +166,7 @@ class _CachedImageState extends State<CachedImage>
           _cachedFile!,
           width: widget.width,
           height: widget.height,
+          cacheWidth: cacheWidth,
           fit: widget.fit,
           errorBuilder: (context, error, stackTrace) {
             return widget.errorWidget ?? _buildErrorWidget(context);

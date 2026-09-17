@@ -27,31 +27,39 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 商品图片
+            // 商品图片（显示多宽就解码多宽：按格子实际宽度解码）
             Expanded(
-              child: Container(
-                width: double.infinity,
-                color: context.backgroundColor,
-                child: product.firstPhoto.isNotEmpty
-                    ? CachedImage(
-                        imageUrl: product.firstPhoto,
-                        fit: BoxFit.cover,
-                        category: CacheCategory.product,
-                        errorWidget: Center(
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            size: 48,
-                            color: context.textSecondaryColor,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 显示多宽就解码多宽：以实际布局宽度作为解码宽度
+                  final double? displayWidth =
+                      constraints.maxWidth.isFinite ? constraints.maxWidth : null;
+                  return Container(
+                    width: double.infinity,
+                    color: context.backgroundColor,
+                    child: product.firstPhoto.isNotEmpty
+                        ? CachedImage(
+                            imageUrl: product.firstPhoto,
+                            fit: BoxFit.cover,
+                            category: CacheCategory.product,
+                            decodeWidth: displayWidth,
+                            errorWidget: Center(
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                size: 48,
+                                color: context.textSecondaryColor,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              size: 48,
+                              color: context.textSecondaryColor,
+                            ),
                           ),
-                        ),
-                      )
-                    : Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 48,
-                          color: context.textSecondaryColor,
-                        ),
-                      ),
+                  );
+                },
               ),
             ),
             // 商品信息

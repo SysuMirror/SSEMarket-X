@@ -1,20 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/auth_service.dart';
 import 'package:sse_market_x/shared/components/layout/auth_desktop_layout.dart';
 import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class ResetPasswordPage extends StatefulWidget {
-  final ApiService apiService;
   final String? initialEmail;
   final bool fromLogin;
 
   const ResetPasswordPage({
     super.key,
-    required this.apiService,
     this.initialEmail,
     this.fromLogin = false,
   });
@@ -24,6 +22,7 @@ class ResetPasswordPage extends StatefulWidget {
 }
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
+  final AuthService _authService = AuthService();
   int _currentStep = 1;
   bool _isLoading = false;
 
@@ -106,7 +105,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       _isLoading = true;
     });
 
-    final result = await widget.apiService.sendCode(_emailController.text.trim(), 1); // 1: Reset Password
+    final result = await _authService.sendCode(_emailController.text.trim(), 1); // 1: Reset Password
 
     if (mounted) {
       setState(() {
@@ -179,7 +178,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       _isLoading = true;
     });
 
-    final result = await widget.apiService.resetPassword(
+    final result = await _authService.resetPassword(
       _emailController.text.trim(),
       newPassword,
       confirmPassword,

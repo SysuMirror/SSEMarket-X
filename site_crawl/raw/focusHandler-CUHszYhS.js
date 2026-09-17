@@ -1,0 +1,1 @@
+function u(s,i){function e(n){return!n||!(n instanceof Element)?!1:["TEXTAREA"].includes(n.tagName)}const t=n=>{e(n.target)&&s(n)},o=n=>{e(n.target)&&i(n)};return window.addEventListener("focusin",t),window.addEventListener("focusout",o),()=>{window.removeEventListener("focusin",t),window.removeEventListener("focusout",o)}}export{u as setupFocusHandlers};

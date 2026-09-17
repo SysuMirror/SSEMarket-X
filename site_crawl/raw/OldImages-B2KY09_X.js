@@ -1,0 +1,1 @@
+import{s as o}from"./strHandler-B3Lupr7P.js";import{d as n,m as s,F as a,G as m,u as c,l as e}from"./vue-DTTUBqu_.js";const l={class:"imgs"},p=["src"],f=n({__name:"OldImages",props:{photos:{}},setup(_){return(t,i)=>(e(),s("div",l,[(e(!0),s(a,null,m(c(o)("img",t.photos),r=>(e(),s("img",{key:r,src:r},null,8,p))),128))]))}});export{f as default};

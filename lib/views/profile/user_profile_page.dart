@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/utils/level_utils.dart';
@@ -12,7 +12,6 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/chat/chat_detail_page.dart';
 
 class UserProfilePage extends StatefulWidget {
-  final ApiService apiService;
   final int userId;
   final String? userPhone;
   final bool isEmbedded;
@@ -20,7 +19,6 @@ class UserProfilePage extends StatefulWidget {
 
   const UserProfilePage({
     super.key,
-    required this.apiService,
     required this.userId,
     this.userPhone,
     this.isEmbedded = false,
@@ -32,6 +30,7 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
+  final UserService _userService = UserService();
   UserModel? _user;
   bool _isLoading = true;
 
@@ -44,7 +43,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadUserInfo() async {
     if (widget.userPhone != null && widget.userPhone!.isNotEmpty) {
       // Use phone to get detailed info if available
-      final user = await widget.apiService.getDetailedUserInfo(widget.userPhone!);
+      final user = await _userService.getDetailedUserInfo(widget.userPhone!);
       if (mounted) {
         setState(() {
           _user = user;
@@ -53,7 +52,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       }
     } else {
       // Use ID to get detailed info
-      final user = await widget.apiService.getInfoById(widget.userId);
+      final user = await _userService.getInfoById(widget.userId);
        if (mounted) {
         setState(() {
           _user = user;
@@ -78,7 +77,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ChatDetailPage(
-            apiService: widget.apiService,
             targetUser: _user!,
             isEmbedded: false,
           ),

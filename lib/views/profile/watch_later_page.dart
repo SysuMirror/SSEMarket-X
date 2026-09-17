@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/watch_later_service.dart';
@@ -12,15 +13,15 @@ import 'package:sse_market_x/views/post/post_detail_page.dart';
 
 /// 稍后再看页面
 class WatchLaterPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const WatchLaterPage({super.key, required this.apiService});
+  const WatchLaterPage({super.key});
 
   @override
   State<WatchLaterPage> createState() => _WatchLaterPageState();
 }
 
 class _WatchLaterPageState extends State<WatchLaterPage> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   final WatchLaterService _watchLaterService = WatchLaterService();
   
   List<WatchLaterItem> _items = [];
@@ -43,7 +44,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
     });
 
     try {
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
       final items = await _watchLaterService.getItems();
       
       if (mounted) {
@@ -353,7 +354,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
                 onLikeTap: _isSelectionMode 
                     ? null 
                     : () async {
-                        return await widget.apiService.likePost(item.post.id, _user.phone);
+                        return await _postService.likePost(item.post.id, _user.phone);
                       },
               ),
               // 添加时间提示 - 优化样式
@@ -530,7 +531,6 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
       MaterialPageRoute(
         builder: (_) => PostDetailPage(
           postId: post.id,
-          apiService: widget.apiService,
           initialPost: post, // 传递初始数据
         ),
       ),

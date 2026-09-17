@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/shared/components/media/image_cropper.dart';
@@ -8,12 +8,10 @@ import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class EditProfilePage extends StatefulWidget {
-  final ApiService apiService;
   final UserModel initialUser;
 
   const EditProfilePage({
     super.key,
-    required this.apiService,
     required this.initialUser,
   });
 
@@ -22,6 +20,7 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  final UserService _userService = UserService();
   late TextEditingController _nameController;
   late TextEditingController _introController;
   String _avatarUrl = '';
@@ -74,7 +73,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       // 上传裁剪后的图片
       final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.png';
-      final url = await widget.apiService.uploadPhoto(croppedBytes, fileName);
+      final url = await _userService.uploadPhoto(croppedBytes, fileName);
       
       if (url != null && mounted) {
         setState(() {
@@ -125,7 +124,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final success = await widget.apiService.updateUserInfo(
+      final success = await _userService.updateUserInfo(
         avatarUrl: _avatarUrl,
         intro: intro,
         name: name,
@@ -140,10 +139,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       // 刷新用户信息并更新本地存储
-      final basic = await widget.apiService.getUserInfo();
+      final basic = await _userService.getUserInfo();
       UserModel detailed = basic;
       if (basic.phone.isNotEmpty) {
-        final d = await widget.apiService.getDetailedUserInfo(basic.phone);
+        final d = await _userService.getDetailedUserInfo(basic.phone);
         detailed = basic.copyWith(score: d.score, intro: d.intro, avatar: d.avatar, name: d.name);
       }
 

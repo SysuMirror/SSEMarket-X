@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/shop_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/product_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/shared/components/loading/skeleton_loader.dart';
@@ -15,13 +16,11 @@ import 'package:sse_market_x/views/chat/chat_detail_page.dart';
 /// 商品详情页
 class ProductDetailPage extends StatefulWidget {
   final int productId;
-  final ApiService apiService;
   final bool isEmbedded;
 
   const ProductDetailPage({
     super.key,
     required this.productId,
-    required this.apiService,
     this.isEmbedded = false,
   });
 
@@ -30,6 +29,8 @@ class ProductDetailPage extends StatefulWidget {
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
+  final ShopService _shopService = ShopService();
+  final UserService _userService = UserService();
   ProductModel _product = ProductModel.empty();
   bool _isLoading = true;
   bool _isOperating = false;
@@ -48,7 +49,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     try {
       final product =
-          await widget.apiService.getProductDetail(widget.productId);
+          await _shopService.getProductDetail(widget.productId);
       if (mounted) {
         setState(() {
           _product = product;
@@ -153,7 +154,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     setState(() => _isOperating = true);
 
     try {
-      final success = await widget.apiService.markProductSold(_product.id);
+      final success = await _shopService.markProductSold(_product.id);
       if (mounted) {
         if (success) {
           SnackBarHelper.show(context, '已标记为售出');
@@ -188,7 +189,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     setState(() => _isOperating = true);
 
     try {
-      final success = await widget.apiService.deleteProduct(_product.id);
+      final success = await _shopService.deleteProduct(_product.id);
       if (mounted) {
         if (success) {
           SnackBarHelper.show(context, '商品已删除');
@@ -457,7 +458,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     // 获取卖家用户信息
     try {
-      final seller = await widget.apiService.getInfoById(_product.sellerId);
+      final seller = await _userService.getInfoById(_product.sellerId);
       if (seller.userId == 0) {
         if (mounted) {
           SnackBarHelper.show(context, '获取卖家信息失败');
@@ -469,7 +470,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => ChatDetailPage(
-              apiService: widget.apiService,
               targetUser: seller,
               isEmbedded: false,
             ),

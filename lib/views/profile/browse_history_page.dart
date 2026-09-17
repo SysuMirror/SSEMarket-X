@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/product_model.dart';
+import 'package:sse_market_x/core/models/rating_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/browse_history_service.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
@@ -27,15 +29,15 @@ enum BrowseHistoryType {
 }
 
 class BrowseHistoryPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const BrowseHistoryPage({super.key, required this.apiService});
+  const BrowseHistoryPage({super.key});
 
   @override
   State<BrowseHistoryPage> createState() => _BrowseHistoryPageState();
 }
 
 class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   final BrowseHistoryService _historyService = BrowseHistoryService();
   final ScrollController _tabScrollController = ScrollController();
   final PageController _pageController = PageController();
@@ -81,7 +83,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
     });
 
     try {
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
       final history = await _historyService.getHistory();
       
       if (mounted) {
@@ -812,18 +814,17 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
       // 根据类型选择合适的卡片组件和样式
       Widget card;
       if (item.type == BrowseHistoryItemType.rating) {
-        // 打分帖子使用 RatingCard 的紧凑模式（与打分界面一致）
+        // 打分帖子使用 RatingCard（与打分专区一致），由 PostModel 反向构造
         card = RatingCard(
-          post: post,
-          isDense: true, // 打分使用紧凑模式
-          hidePartition: true, // 隐藏分区标签（用户已在对应分区标签下）
-          onTap: _isSelectionMode 
+          ratingPost: RatingPost.fromPostModel(post),
+          hideCategory: true, // 隐藏分类链接（用户已在对应分类标签下）
+          onTap: _isSelectionMode
               ? null // 选择模式下禁用卡片自带的点击
               : () => _navigateToPostDetail(item, post),
-          onLikeTap: _isSelectionMode 
-              ? null 
+          onLikeTap: _isSelectionMode
+              ? null
               : () async {
-                  return widget.apiService.likePost(post.id, _user.phone);
+                  return _postService.likeRatingPost(post.id);
                 },
         );
       } else if (item.type == BrowseHistoryItemType.course) {
@@ -838,7 +839,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           onLikeTap: _isSelectionMode 
               ? null 
               : () async {
-                  return widget.apiService.likePost(post.id, _user.phone);
+                  return _postService.likePost(post.id, _user.phone);
                 },
         );
       } else {
@@ -852,7 +853,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           onLikeTap: _isSelectionMode 
               ? null 
               : () async {
-                  return widget.apiService.likePost(post.id, _user.phone);
+                  return _postService.likePost(post.id, _user.phone);
                 },
         );
       }
@@ -918,7 +919,6 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
       MaterialPageRoute(
         builder: (_) => ProductDetailPage(
           productId: product.id,
-          apiService: widget.apiService,
         ),
       ),
     );
@@ -931,14 +931,12 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
     if (item.type == BrowseHistoryItemType.rating) {
       detailPage = ScorePostDetailPage(
         postId: post.id,
-        apiService: widget.apiService,
         initialPost: post,
       );
     } else {
       // 课程和普通帖子都使用 PostDetailPage
       detailPage = PostDetailPage(
         postId: post.id,
-        apiService: widget.apiService,
         initialPost: post, // 传递初始数据
       );
     }

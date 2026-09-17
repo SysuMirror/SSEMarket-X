@@ -1,0 +1,1 @@
+function t(r,e){if(!e)return"";switch(r){case"img":return e.split("|");case"time":return e.replace("T"," ").split("+")[0];case"postImg":return e.replace("resized","uploads");default:return e}}export{t as s};

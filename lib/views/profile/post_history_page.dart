@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/api_types.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
@@ -9,15 +11,15 @@ import 'package:sse_market_x/shared/components/cards/post_card.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class PostHistoryPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const PostHistoryPage({super.key, required this.apiService});
+  const PostHistoryPage({super.key});
 
   @override
   State<PostHistoryPage> createState() => _PostHistoryPageState();
 }
 
 class _PostHistoryPageState extends State<PostHistoryPage> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   final ScrollController _scrollController = ScrollController();
   List<PostModel> _posts = [];
   UserModel _user = UserModel.empty();
@@ -51,7 +53,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
 
   Future<void> _loadUserAndHistory() async {
     try {
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
       if (mounted) {
         setState(() {
           _user = user;
@@ -76,7 +78,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
     });
 
     try {
-      final posts = await widget.apiService.getPosts(
+      final result = await _postService.getPosts(
         GetPostsParams(
           limit: _pageSize,
           offset: _offset,
@@ -92,12 +94,14 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
 
       setState(() {
         if (refresh) {
-          _posts = posts;
+          // 首页/刷新：置顶帖插顶部（如有）；续载只追加一般帖
+          _posts = [...result.pinned, ...result.posts];
         } else {
-          _posts.addAll(posts);
+          _posts.addAll(result.posts);
         }
-        _offset += posts.length;
-        _hasMore = posts.length == _pageSize;
+        // offset 只按一般帖推进，不被置顶帖污染
+        _offset += result.posts.length;
+        _hasMore = result.posts.length >= _pageSize;
         _isLoading = false;
         _isInitialLoading = false;
       });
@@ -193,7 +197,6 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                 MaterialPageRoute(
                   builder: (_) => PostDetailPage(
                     postId: post.id,
-                    apiService: widget.apiService,
                     initialPost: post, // 传递初始数据
                   ),
                 ),
@@ -207,7 +210,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
               }
             },
             onLikeTap: () async {
-              return widget.apiService.likePost(post.id, _user.phone);
+              return _postService.likePost(post.id, _user.phone);
             },
           );
         },

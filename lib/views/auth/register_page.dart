@@ -1,23 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/auth_service.dart';
 import 'package:sse_market_x/shared/components/layout/auth_desktop_layout.dart';
 import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
-  final ApiService apiService;
   final bool fromLogin;
 
-  const RegisterPage({super.key, required this.apiService, this.fromLogin = false});
+  const RegisterPage({super.key, this.fromLogin = false});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final AuthService _authService = AuthService();
   int _currentStep = 1;
   bool _isLoading = false;
   
@@ -65,7 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
       _isLoading = true;
     });
 
-    final result = await widget.apiService.sendCode(_emailController.text.trim(), 0); // 0: Register
+    final result = await _authService.sendCode(_emailController.text.trim(), 0); // 0: Register
 
     if (mounted) {
       setState(() {
@@ -139,7 +139,7 @@ class _RegisterPageState extends State<RegisterPage> {
       'valiCode': _valiCodeController.text.trim(),
     };
 
-    final result = await widget.apiService.register(data);
+    final result = await _authService.register(data);
 
     if (mounted) {
       setState(() {

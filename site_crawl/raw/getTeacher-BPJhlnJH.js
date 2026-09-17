@@ -1,0 +1,1 @@
+import{r as e}from"./index-pcgjWmeH.js";async function s(){try{return(await(await e("/auth/getTags?type=course",{method:"GET",headers:{}},!0))?.json()).data.tags}catch(t){return console.error(t),[]}}export{s as g};

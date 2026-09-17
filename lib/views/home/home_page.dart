@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/api_types.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
@@ -9,11 +10,14 @@ import 'package:sse_market_x/core/services/browse_history_service.dart';
 import 'package:sse_market_x/views/post/create_post_page.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 import 'package:sse_market_x/views/home/search_page.dart';
-import 'package:sse_market_x/views/home/teacher_page.dart';
+import 'package:sse_market_x/views/home/partition_page.dart';
+import 'package:sse_market_x/views/todo/score_page.dart';
+import 'package:sse_market_x/views/shop/shop_page.dart';
 import 'package:sse_market_x/shared/components/layout/home_header.dart';
 import 'package:sse_market_x/shared/components/layout/layout_config.dart';
 import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
 import 'package:sse_market_x/shared/components/loading/skeleton_loader.dart';
+import 'package:sse_market_x/shared/components/feedback/content_upgrading_placeholder.dart';
 import 'package:sse_market_x/shared/components/cards/post_card.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/profile/user_profile_page.dart';
@@ -21,14 +25,12 @@ import 'package:sse_market_x/views/profile/user_profile_page.dart';
 class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
-    required this.apiService,
     this.showHeaderAvatar = true,
     this.showHeaderAddButton = true,
     this.onPostTap,
     this.onAvatarTap,
   });
 
-  final ApiService apiService;
   final bool showHeaderAvatar;
   final bool showHeaderAddButton;
   final Function(int postId)? onPostTap;
@@ -46,6 +48,7 @@ class _PartitionState {
   bool isRefreshing;
   bool hasLoadedOnce; // 标记是否至少加载过一次
   int newPostsCount; // 后台刷新发现的新帖子数量
+  bool hasFormatError; // 响应结构不兼容，显示「内容升级中」
 
   _PartitionState({
     List<PostModel>? posts,
@@ -55,45 +58,27 @@ class _PartitionState {
     this.isRefreshing = false,
     this.hasLoadedOnce = false,
     this.newPostsCount = 0,
+    this.hasFormatError = false,
   }) : posts = posts ?? <PostModel>[];
 }
 
 class HomePageState extends State<HomePage> {
+  final PostService _postService = PostService();
   static const int _pageSize = 10;
 
   /// 显示名称分区列表
-  /// 院务 -> 院务
-  /// 教师 -> 课程专区（特殊处理，使用独立页面）
-  /// 课程 -> 课程交流
-  /// 学习解惑 -> 学习交流
-  /// 打听求助 -> 打听求助
-  /// 随想随记 -> 日常吐槽
-  /// 求职招募 -> 求职招募
-  /// 杂项 -> 主页
-  /// 其他 -> 其他
+  /// 主页 -> 主页（帖子列表）
+  /// 分区 / 打分 / 商城 -> 独立页面（特殊处理，非帖子列表）
   final List<String> _displayPartitions = <String>[
     '主页',
-    '院务',
-    '教师',
-    '课程',
-    '学习解惑',
-    '打听求助',
-    '随想随记',
-    '求职招募',
-    '其他',
+    '分区',
+    '打分',
+    '商城',
   ];
 
-  /// 显示名称 -> API 名称
+  /// 显示名称 -> API 名称（仅帖子列表分页需要映射）
   final Map<String, String> _displayToApiPartition = <String, String>{
     '主页': '主页',
-    '院务': '院务',
-    '教师': '课程专区',
-    '课程': '课程交流',
-    '学习解惑': '学习交流',
-    '打听求助': '打听求助',
-    '随想随记': '日常吐槽',
-    '求职招募': '求职招募',
-    '其他': '其他',
   };
 
   /// API 名称 -> 分区状态
@@ -160,6 +145,9 @@ class HomePageState extends State<HomePage> {
         if (cachedPosts.isNotEmpty && mounted) {
           setState(() {
             _partitionStates[_currentApiPartition] = _PartitionState(
+              // 旧缓存为「置顶+一般帖」合并列表，无法区分置顶帖：
+              // 保守处理为 offset 全量计数（最多多计置顶帖数量，
+              // 续载可能一次性跳过相应帖子），不丢弃用户缓存。
               posts: cachedPosts,
               offset: cachedPosts.length,
               hasMore: true,
@@ -239,6 +227,9 @@ class HomePageState extends State<HomePage> {
       _partitionStates[_currentApiPartition] ?? _PartitionState();
 
   Future<void> _fetchPosts({required bool refresh, bool silent = false}) async {
+    // 非帖子列表分页（分区/打分/商城）不加载帖子
+    if (!_displayToApiPartition.containsKey(_currentDisplayPartition)) return;
+
     final state = _currentState;
     if (state.isLoading) return;
 
@@ -251,6 +242,7 @@ class HomePageState extends State<HomePage> {
       isRefreshing: refresh && !silent,
       hasLoadedOnce: state.hasLoadedOnce,
       newPostsCount: state.newPostsCount,
+      hasFormatError: state.hasFormatError,
     );
 
     if (!silent) {
@@ -270,7 +262,7 @@ class HomePageState extends State<HomePage> {
         tag: '',
       );
 
-      final list = await widget.apiService.getPosts(params);
+      final result = await _postService.getPosts(params);
 
       // 静默刷新：比较新旧数据，计算新帖子数量
       int newCount = 0;
@@ -279,22 +271,31 @@ class HomePageState extends State<HomePage> {
       if (silent && refresh && state.posts.isNotEmpty) {
         // 静默刷新模式：不立即更新列表，只记录新帖子数量
         final existingIds = state.posts.map((p) => p.id).toSet();
-        newCount = list.where((p) => !existingIds.contains(p.id)).length;
+        newCount = [...result.pinned, ...result.posts]
+            .where((p) => !existingIds.contains(p.id))
+            .length;
         finalPosts = state.posts; // 保持原列表
       } else {
-        // 正常刷新或加载更多
-        finalPosts = refresh ? list : <PostModel>[...newState.posts, ...list];
+        // 正常刷新或加载更多：
+        // 刷新（首页）= 置顶帖插顶部 + 一般帖；续载只追加一般帖，不重复插入置顶
+        finalPosts = refresh
+            ? [...result.pinned, ...result.posts]
+            : <PostModel>[...newState.posts, ...result.posts];
         newCount = 0;
       }
 
       final updated = _PartitionState(
         posts: finalPosts,
-        offset: refresh ? list.length : newState.offset + list.length,
-        hasMore: list.length == _pageSize,
+        // offset 只按一般帖推进，不被置顶帖污染
+        offset: refresh
+            ? result.posts.length
+            : newState.offset + result.posts.length,
+        hasMore: result.posts.length >= _pageSize,
         isLoading: false,
         isRefreshing: false,
         hasLoadedOnce: true,
         newPostsCount: newCount,
+        hasFormatError: false,
       );
 
       if (!mounted) return;
@@ -306,6 +307,21 @@ class HomePageState extends State<HomePage> {
       if (!silent && refresh) {
         _saveCachedPosts(finalPosts);
       }
+    } on ApiResponseFormatError {
+      // 响应结构不兼容：标记该分区显示「内容升级中」
+      if (!mounted) return;
+      setState(() {
+        _partitionStates[_currentApiPartition] = _PartitionState(
+          posts: (refresh && !silent) ? <PostModel>[] : newState.posts,
+          offset: newState.offset,
+          hasMore: false,
+          isLoading: false,
+          isRefreshing: false,
+          hasLoadedOnce: true,
+          newPostsCount: 0,
+          hasFormatError: true,
+        );
+      });
     } finally {
       if (mounted && !silent) {
         final st = _partitionStates[_currentApiPartition] ?? _PartitionState();
@@ -317,16 +333,76 @@ class HomePageState extends State<HomePage> {
           isRefreshing: false,
           hasLoadedOnce: st.hasLoadedOnce,
           newPostsCount: st.newPostsCount,
+          hasFormatError: st.hasFormatError,
         );
       }
     }
   }
 
   void _onPartitionTap(String partition) {
+    // 商城是独立页面入口：点击后全屏进入，不在主页框架内展示
+    if (partition == '商城') {
+      _openShop();
+      return;
+    }
     final index = _displayPartitions.indexOf(partition);
     if (index == -1 || index == _currentPartitionIndex) return;
     // 点击分区标签时直接切换到目标页，避免动画滚动经过中间页造成不必要的渲染
     _pageController.jumpToPage(index);
+  }
+
+  /// 进入独立的闲置物品商城页（全屏路由，覆盖主页顶部栏与底部导航）
+  Future<void> _openShop() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ShopPage(
+          standalone: true,
+        ),
+      ),
+    );
+  }
+
+  /// 商城入口页：主页框架内的占位入口（左右滑动滑到该页时显示），点击进入独立商城页
+  Widget _buildShopEntry(double topPadding) {
+    final bottomPadding =
+        MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight;
+    return GestureDetector(
+      onTap: _openShop,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: context.backgroundColor,
+        padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.storefront_outlined,
+                size: 72,
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '闲置物品商城',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: context.textPrimaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '点击进入商城',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _onPageChanged(int index) {
@@ -379,16 +455,32 @@ class HomePageState extends State<HomePage> {
             itemBuilder: (context, index) {
               final partition = _displayPartitions[index];
 
-              // 教师分区使用独立页面
-              if (partition == '教师') {
-                final layoutConfig = LayoutConfig.of(context);
-                final onPostTap = layoutConfig?.onPostTap ?? widget.onPostTap;
-                // TeacherPage handles its own scrolling but needs padding to not be hidden by header
-                return TeacherPage(
-                  apiService: widget.apiService,
-                  onPostTap: onPostTap,
+              // 分区页使用独立页面（浏览各分区入口）
+              if (partition == '分区') {
+                return PartitionPage(
                   contentPadding: EdgeInsets.only(top: headerHeight),
                 );
+              }
+
+              // 打分页使用独立页面（自带 AppBar，需避开顶部导航高度）
+              if (partition == '打分') {
+                final layoutConfig = LayoutConfig.of(context);
+                return MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: headerHeight),
+                    child: ScorePage(
+                      onPostTap:
+                          layoutConfig?.onPostTap ?? widget.onPostTap,
+                    ),
+                  ),
+                );
+              }
+
+              // 商城页仅作为入口占位，点击后进入独立商城页
+              if (partition == '商城') {
+                return _buildShopEntry(headerHeight);
               }
 
               final apiPartition =
@@ -433,6 +525,14 @@ class HomePageState extends State<HomePage> {
       );
     }
 
+    // 响应结构不兼容时显示「内容升级中」
+    if (state.hasFormatError && state.posts.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.only(top: topPadding + 8, bottom: bottomPadding),
+        child: const ContentUpgradingPlaceholder(),
+      );
+    }
+
     return Container(
       color: context.backgroundColor, // Use consistent background color
       child: RefreshIndicator(
@@ -472,7 +572,6 @@ class HomePageState extends State<HomePage> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => UserProfilePage(
-                          apiService: widget.apiService,
                           userId: 0,
                           userPhone: post.authorPhone,
                         ),
@@ -514,7 +613,6 @@ class HomePageState extends State<HomePage> {
                       MaterialPageRoute(
                         builder: (_) => PostDetailPage(
                           postId: post.id,
-                          apiService: widget.apiService,
                           initialPost: post, // 传递初始数据，优化加载体验
                         ),
                       ),
@@ -546,7 +644,7 @@ class HomePageState extends State<HomePage> {
                     }
                   },
                   onLikeTap: () async {
-                    return await widget.apiService
+                    return await _postService
                         .likePost(post.id, _user.phone);
                   },
                 );
@@ -696,7 +794,6 @@ class HomePageState extends State<HomePage> {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => SearchPage(
-                apiService: widget.apiService,
                 partition:
                     _displayToApiPartition[_currentDisplayPartition] ?? '主页',
                 onPostTap: onPostTap, // 传递三栏布局的回调
@@ -707,7 +804,7 @@ class HomePageState extends State<HomePage> {
         onAddPostTap: () async {
           final result = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
-              builder: (_) => CreatePostPage(apiService: widget.apiService),
+              builder: (_) => const CreatePostPage(),
             ),
           );
           // 如果发布成功，刷新当前分区
