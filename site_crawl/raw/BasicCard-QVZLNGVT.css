@@ -1,0 +1,1 @@
+.card-root{position:relative;padding:14px;background:var(--color-card, #ffffff);border:none;border-radius:var(--radius-lg, 8px);box-shadow:var(--color-card-shadow);transition:box-shadow .15s ease,transform .1s ease}.card-root:hover{box-shadow:var(--color-card-hover-shadow)}.card-root p{text-indent:0}

@@ -1,29 +1,27 @@
-import 'dart:convert';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
-import 'package:sse_market_x/core/models/post_model.dart';
+
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/models/rating_model.dart';
 import 'package:sse_market_x/core/services/browse_history_service.dart';
-import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/blur_effect_service.dart';
 import 'package:sse_market_x/shared/components/cards/rating_card.dart';
 import 'package:sse_market_x/shared/components/layout/layout_config.dart';
 import 'package:sse_market_x/shared/components/loading/skeleton_loader.dart';
-import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/post/create_post_page.dart';
 import 'package:sse_market_x/views/post/score_post_detail_page.dart';
 
+/// 打分专区页（对齐官网 /rating：分类 pill + 搜寻 + 评分帖卡列表）
 class ScorePage extends StatefulWidget {
   const ScorePage({
     super.key,
-    required this.apiService,
     this.onPostTap,
   });
 
-  final ApiService apiService;
   final Function(int postId)? onPostTap;
 
   @override
@@ -31,161 +29,152 @@ class ScorePage extends StatefulWidget {
 }
 
 class _ScorePageState extends State<ScorePage> {
-  List<PostModel> _posts = [];
-  bool _isLoading = true; // 初始化时设置为 true，避免显示空状态
-  bool _isRefreshing = false;
-  bool _hasMore = true;
-  bool _hasLoadedOnce = false;
-  int _offset = 0;
-  int _newPostsCount = 0;
+  final PostService _postService = PostService();
+  final TextEditingController _searchController = TextEditingController();
+
+  /// 「全部」哨兵值：接口 categoryID < 0 表示全部
+  static const int _allCategoryId = -1;
   static const int _pageSize = 20;
-  final ScrollController _scrollController = ScrollController();
+
+  List<RatingCategory> _categories = [];
+  List<RatingPost> _posts = [];
+  int _selectedCategoryId = _allCategoryId;
+  String _appliedSearch = '';
+  int _offset = 0;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
-    _loadInitialPosts();
+    _loadCategories();
+    _loadPosts(refresh: true);
+    _clearLegacyCache();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialPosts() async {
-    // 尝试从缓存加载
-    await _loadCachedPosts();
-    
-    // 后台静默刷新或首次加载
-    if (_hasLoadedOnce) {
-      _fetchPosts(refresh: true, silent: true);
-    } else {
-      // 首次加载，强制执行
-      _fetchPosts(refresh: true, forceLoad: true);
-    }
-  }
-  
-  /// 从本地缓存加载帖子列表
-  Future<void> _loadCachedPosts() async {
+  /// 旧版打分本地缓存（score_posts_cache）已随 browse 旧数据路径弃用，清除残留
+  Future<void> _clearLegacyCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedJson = prefs.getString('score_posts_cache');
-      
-      if (cachedJson != null && cachedJson.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(cachedJson);
-        final cachedPosts = jsonList.map((json) => PostModel.fromDynamic(json)).toList();
-        
-        if (cachedPosts.isNotEmpty && mounted) {
-          setState(() {
-            _posts = cachedPosts;
-            _offset = cachedPosts.length;
-            _hasLoadedOnce = true;
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-      
-      // 没有缓存，不设置 _isLoading，让后续的 _fetchPosts 正常执行
+      await prefs.remove('score_posts_cache');
     } catch (e) {
-      debugPrint('加载缓存打分帖子失败: $e');
-      // 加载失败，不设置 _isLoading，让后续的 _fetchPosts 正常执行
-    }
-  }
-  
-  /// 保存帖子列表到本地缓存
-  Future<void> _saveCachedPosts(List<PostModel> posts) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonList = posts.map((post) => post.toJson()).toList();
-      await prefs.setString('score_posts_cache', jsonEncode(jsonList));
-    } catch (e) {
-      debugPrint('保存缓存打分帖子失败: $e');
+      debugPrint('清除旧打分缓存失败: $e');
     }
   }
 
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final current = _scrollController.position.pixels;
-    if (maxScroll - current < 200) {
-      if (!_isLoading && _hasMore) {
-        _fetchPosts(refresh: false);
-      }
+  Future<void> _loadCategories() async {
+    final categories = await _postService.getRatingCategories();
+    if (!mounted) return;
+    if (categories == null) {
+      // 分类加载失败不阻塞列表，仅保留「全部」pill
+      debugPrint('评分分类加载失败，仅保留「全部」');
+      return;
     }
+    setState(() {
+      _categories = categories;
+    });
   }
 
-  Future<void> _fetchPosts({required bool refresh, bool silent = false, bool forceLoad = false}) async {
-    // 如果正在加载且不是静默模式且不是强制加载，则跳过
-    if (_isLoading && !silent && !forceLoad) return;
+  Future<void> _loadPosts({required bool refresh}) async {
+    if (_isLoading || _isLoadingMore) return;
 
-    if (!silent) {
-      setState(() {
+    setState(() {
+      if (refresh) {
         _isLoading = true;
-        if (refresh) {
-          _isRefreshing = true;
-          _offset = 0;
-        }
-      });
-    }
+        _offset = 0;
+      } else {
+        _isLoadingMore = true;
+      }
+    });
 
     try {
-      final userPhone = StorageService().user?.phone ?? '';
-      final params = GetPostsParams(
+      final list = await _postService.getRatingPosts(
+        categoryId: _selectedCategoryId,
+        searchinfo: _appliedSearch,
         limit: _pageSize,
-        offset: _offset,
-        partition: '打分',
-        searchsort: 'rating',
-        searchinfo: '',
-        userTelephone: userPhone,
-        tag: '',
+        offset: refresh ? 0 : _offset,
       );
-
-      final list = await widget.apiService.getPosts(params);
 
       if (!mounted) return;
 
-      // 静默刷新：比较新旧数据
-      int newCount = 0;
-      List<PostModel> finalPosts;
-      
-      if (silent && refresh && _posts.isNotEmpty) {
-        final existingIds = _posts.map((p) => p.id).toSet();
-        newCount = list.where((p) => !existingIds.contains(p.id)).length;
-        finalPosts = _posts;
-      } else {
-        finalPosts = refresh ? list : [..._posts, ...list];
-        newCount = 0;
+      if (list == null) {
+        setState(() {
+          if (refresh) {
+            _posts = [];
+            _hasMore = false;
+          }
+        });
+        SnackBarHelper.show(context, '加载失败，请重试');
+        return;
       }
 
       setState(() {
-        _posts = finalPosts;
-        _offset = refresh ? list.length : _offset + list.length;
+        _posts = refresh ? list : [..._posts, ...list];
+        _offset += list.length;
         _hasMore = list.length == _pageSize;
-        _hasLoadedOnce = true;
-        _newPostsCount = newCount;
       });
-      
-      // 保存到缓存（仅在正常刷新时）
-      if (!silent && refresh) {
-        _saveCachedPosts(finalPosts);
-      }
-    } catch (e) {
-      debugPrint('Fetch posts error: $e');
-      if (mounted) {
-        SnackBarHelper.show(context, '加载失败: $e');
-      }
     } finally {
+      // 任何路径（含异常）都保证复位加载标志，防止永久 Skeleton
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _isRefreshing = false;
+          _isLoadingMore = false;
         });
       }
     }
+  }
+
+  void _onSearchSubmitted() {
+    _appliedSearch = _searchController.text.trim();
+    _loadPosts(refresh: true);
+  }
+
+  void _onCategoryPillTap(int categoryId) {
+    if (categoryId == _selectedCategoryId) return;
+    setState(() {
+      _selectedCategoryId = categoryId;
+    });
+    _loadPosts(refresh: true);
+  }
+
+  /// 卡片分类链接 → 切换到对应分类 pill
+  void _switchToCategoryByName(String name) {
+    for (final category in _categories) {
+      if (category.name == name) {
+        _onCategoryPillTap(category.categoryId);
+        return;
+      }
+    }
+  }
+
+  void _onCardTap(RatingPost post) {
+    // 浏览历史记录（partition 记「打分」）
+    BrowseHistoryService().addPostHistory(post.toPostModel());
+
+    final onPostTap = LayoutConfig.of(context)?.onPostTap;
+    if (onPostTap != null) {
+      // 多栏模式，回调给宿主打开详情面板
+      onPostTap(post.ratingPostId, isScorePost: true);
+      return;
+    }
+
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ScorePostDetailPage(
+              postId: post.ratingPostId,
+              initialPost: post.toPostModel(),
+            ),
+          ),
+        )
+        .then((_) => _loadPosts(refresh: true));
   }
 
   @override
@@ -202,7 +191,7 @@ class _ScorePageState extends State<ScorePage> {
           builder: (context, isBlurEnabled, _) {
             Widget content = Container(
               decoration: BoxDecoration(
-                color: isBlurEnabled 
+                color: isBlurEnabled
                     ? context.blurBackgroundColor.withOpacity(0.82)
                     : context.surfaceColor,
                 border: Border(
@@ -213,7 +202,7 @@ class _ScorePageState extends State<ScorePage> {
                 ),
               ),
             );
-            
+
             if (isBlurEnabled) {
               return ClipRect(
                 child: BackdropFilter(
@@ -227,7 +216,7 @@ class _ScorePageState extends State<ScorePage> {
           },
         ),
         title: Text(
-          '打分',
+          '打分专区',
           style: TextStyle(
             color: context.textPrimaryColor,
             fontWeight: FontWeight.bold,
@@ -235,6 +224,17 @@ class _ScorePageState extends State<ScorePage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.create_new_folder_outlined,
+              color: context.textSecondaryColor,
+              size: 22,
+            ),
+            tooltip: '创建分区',
+            onPressed: () {
+              SnackBarHelper.show(context, '即将上线');
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 6),
             child: IconButton(
@@ -243,8 +243,7 @@ class _ScorePageState extends State<ScorePage> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => CreatePostPage(
-                      apiService: widget.apiService,
+                    builder: (_) => const CreatePostPage(
                       fromRatingPage: true,
                     ),
                   ),
@@ -259,214 +258,201 @@ class _ScorePageState extends State<ScorePage> {
         automaticallyImplyLeading: false,
       ),
       backgroundColor: context.backgroundColor,
-      body: _buildBody(topPadding, bottomPadding),
+      body: _buildBody(context, topPadding, bottomPadding),
     );
   }
 
-  Widget _buildBody(double topPadding, double bottomPadding) {
-    if (!_hasLoadedOnce && _isLoading && _posts.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.only(top: topPadding + 8, bottom: bottomPadding),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          PostListSkeleton(itemCount: 5, isDense: true),
-        ],
-      );
-    }
-
-    if (!_isLoading && _posts.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.only(top: topPadding + 100),
-        physics: const AlwaysScrollableScrollPhysics(),
+  Widget _buildBody(
+    BuildContext context,
+    double topPadding,
+    double bottomPadding,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(top: topPadding),
+      child: Column(
         children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '暂无打分数据',
-                  style: TextStyle(color: context.textSecondaryColor, fontSize: 16),
+          _buildSearchRow(context),
+          const SizedBox(height: 8),
+          _buildCategoryPills(context),
+          const SizedBox(height: 4),
+          Expanded(child: _buildList(context, bottomPadding)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchRow(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _onSearchSubmitted(),
+              style: TextStyle(
+                fontSize: 14,
+                color: context.textPrimaryColor,
+              ),
+              decoration: InputDecoration(
+                hintText: '搜索主题或分区名（如「其他」）',
+                hintStyle: TextStyle(
+                  fontSize: 13,
+                  color: context.textTertiaryColor,
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _fetchPosts(refresh: true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('刷新重试'),
+                filled: true,
+                fillColor: context.surfaceColor,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-              ],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                prefixIcon: const Icon(Icons.search, size: 20),
+              ),
             ),
           ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _onSearchSubmitted,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('搜'),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 分类 pill 横向列表：「全部」+ 各分类「{name} {postCount}」
+  Widget _buildCategoryPills(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _buildPill(
+            context,
+            '全部',
+            _selectedCategoryId == _allCategoryId,
+            () => _onCategoryPillTap(_allCategoryId),
+          ),
+          for (final category in _categories)
+            _buildPill(
+              context,
+              '${category.name} ${category.postCount}',
+              _selectedCategoryId == category.categoryId,
+              () => _onCategoryPillTap(category.categoryId),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPill(
+    BuildContext context,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : context.surfaceColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? AppColors.primary : context.dividerColor,
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? Colors.white : context.textSecondaryColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList(BuildContext context, double bottomPadding) {
+    if (_isLoading) {
+      return const PostListSkeleton(itemCount: 5, isDense: true);
+    }
+
+    if (_posts.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _loadPosts(refresh: true),
+        color: AppColors.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(top: 120),
+          children: [
+            Center(
+              child: Text(
+                '暂无内容',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: context.textSecondaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
-      edgeOffset: topPadding,
-      onRefresh: () => _fetchPosts(refresh: true),
+      onRefresh: () => _loadPosts(refresh: true),
       color: AppColors.primary,
-      child: Stack(
-        children: [
-          ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.only(top: topPadding + 8, bottom: bottomPadding + 16),
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: bottomPadding + 16),
         itemCount: _posts.length + 1,
         itemBuilder: (context, index) {
-          if (index < _posts.length) {
-            final post = _posts[index];
-            return RatingCard(
-              post: post,
-              isDense: true,
-              onTap: () async {
-                // 添加到浏览历史（在点击时记录）
-                // 确保 partition 字段是"打分"
-                final postWithPartition = PostModel(
-                  id: post.id,
-                  title: post.title,
-                  content: post.content,
-                  partition: '打分', // 明确设置为"打分"
-                  authorName: post.authorName,
-                  authorAvatar: post.authorAvatar,
-                  authorPhone: post.authorPhone,
-                  createdAt: post.createdAt,
-                  likeCount: post.likeCount,
-                  commentCount: post.commentCount,
-                  saveCount: post.saveCount,
-                  viewCount: post.viewCount,
-                  userScore: post.userScore,
-                  userIdentity: post.userIdentity,
-                  isLiked: post.isLiked,
-                  isSaved: post.isSaved,
-                  rating: post.rating,
-                  stars: post.stars,
-                  userRating: post.userRating,
-                  heat: post.heat,
-                );
-                BrowseHistoryService().addPostHistory(postWithPartition);
-                
-                final layoutConfig = LayoutConfig.of(context);
-                final onPostTap = layoutConfig?.onPostTap;
-                
-                if (onPostTap != null) {
-                  // 多栏模式下，直接调用回调
-                  onPostTap(post.id, isScorePost: true);
-                  return;
-                }
-
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ScorePostDetailPage(
-                      postId: post.id,
-                      apiService: widget.apiService,
-                      initialPost: post,
-                    ),
-                  ),
-                );
-                // 返回后刷新列表
-                _fetchPosts(refresh: true);
-              },
-              onLikeTap: () async {
-                final userPhone = StorageService().user?.phone ?? '';
-                return await widget.apiService.likePost(post.id, userPhone);
-              },
-            );
-          }
-          
-          // Loading footer
-          if (_isLoading && !_isRefreshing) {
-            return const LoadingRow(message: '加载更多...', size: 16);
-          }
-          
-          // No more data footer
-          if (!_hasMore && _posts.isNotEmpty) {
-             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          if (index == _posts.length) {
+            if (!_hasMore) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
-                child: Text(
-                  '已经到底啦',
-                  style: TextStyle(fontSize: 12, color: context.textSecondaryColor),
-                ),
+                child: _isLoadingMore
+                    ? const Text(
+                        '…',
+                        style: TextStyle(fontSize: 14),
+                      )
+                    : TextButton(
+                        onPressed: () => _loadPosts(refresh: false),
+                        child: const Text('加载更多'),
+                      ),
               ),
             );
           }
-          
-          return const SizedBox.shrink();
+
+          final post = _posts[index];
+          return RatingCard(
+            ratingPost: post,
+            onTap: () => _onCardTap(post),
+            onCategoryTap: _switchToCategoryByName,
+            onLikeTap: () => _postService.likeRatingPost(post.ratingPostId),
+          );
         },
-      ),
-          // 新帖子提示条
-          if (_newPostsCount > 0)
-            Positioned(
-              top: 8,
-              left: 0,
-              right: 0,
-              child: _buildNewPostsIndicator(_newPostsCount),
-            ),
-        ],
-      ),
-    );
-  }
-  
-  /// 新帖子提示条
-  Widget _buildNewPostsIndicator(int count) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            _fetchPosts(refresh: true);
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withOpacity(0.9),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.fiber_new_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$count 条新内容',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.touch_app_rounded,
-                  color: Colors.white,
-                  size: 14,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

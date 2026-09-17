@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class FeedbackPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const FeedbackPage({
-    super.key,
-    required this.apiService,
-  });
+  const FeedbackPage({super.key});
 
   @override
   State<FeedbackPage> createState() => _FeedbackPageState();
 }
 
 class _FeedbackPageState extends State<FeedbackPage> {
+  final UserService _userService = UserService();
   final TextEditingController _contentController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -37,7 +33,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     });
 
     try {
-      final success = await widget.apiService.submitFeedback(content);
+      final success = await _userService.submitFeedback(content);
       if (mounted) {
         if (success) {
           SnackBarHelper.show(context, '反馈提交成功，感谢您的建议！');

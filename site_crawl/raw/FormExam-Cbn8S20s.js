@@ -1,0 +1,1 @@
+import{b as t}from"./vue-DTTUBqu_.js";function s(e){return{correct:t(()=>{if(!Array.isArray(e.value))return!1;for(const r of e.value)if(r.reg){if(!r.reg.test(r.value))return!1}else if(r.value.trim()==="")return!1;return!0})}}export{s as u};

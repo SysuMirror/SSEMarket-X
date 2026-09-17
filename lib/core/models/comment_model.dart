@@ -96,7 +96,7 @@ class CommentModel {
     }
 
     return CommentModel(
-      id: _readInt(['PcommentID', 'pcommentID', 'id']),
+      id: _readInt(['PcommentID', 'pcommentID', 'commentID', 'id']),
       authorId: _readInt(['AuthorID', 'authorID']),
       authorName: _readString(['Author', 'author', 'AuthorName', 'authorName']),
       authorPhone: _readString(['AuthorTelephone', 'authorTelephone']),

@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/views/post/markdown_help_page.dart';
@@ -18,7 +19,6 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 /// 创建帖子页面
 class CreatePostPage extends StatefulWidget {
-  final ApiService apiService;
   final bool isEmbedded;
   final bool isActive;
   final Function(String title, String content)? onPreviewUpdate;
@@ -28,7 +28,6 @@ class CreatePostPage extends StatefulWidget {
 
   const CreatePostPage({
     super.key,
-    required this.apiService,
     this.isEmbedded = false,
     this.isActive = true,
     this.onPreviewUpdate,
@@ -41,6 +40,8 @@ class CreatePostPage extends StatefulWidget {
 }
 
 class _CreatePostPageState extends State<CreatePostPage> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
 
@@ -143,11 +144,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
     
     // 然后从 API 获取最新信息（包括详细的 score）
     try {
-      final basic = await widget.apiService.getUserInfo();
+      final basic = await _userService.getUserInfo();
       UserModel detailed = basic;
       // 获取详细信息（包含 score 和 intro）
       if (basic.phone.isNotEmpty) {
-        final d = await widget.apiService.getDetailedUserInfo(basic.phone);
+        final d = await _userService.getDetailedUserInfo(basic.phone);
         detailed = basic.copyWith(score: d.score, intro: d.intro);
       }
       if (mounted) {
@@ -235,7 +236,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     try {
       final apiPartition = _displayToApiPartition[_selectedPartition] ?? '主页';
-      final success = await widget.apiService.createPost(
+      final success = await _postService.createPost(
         title,
         content,
         apiPartition,
@@ -325,7 +326,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       });
       
       final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.png';
-      final imageUrl = await widget.apiService.uploadPhoto(editedBytes, fileName);
+      final imageUrl = await _userService.uploadPhoto(editedBytes, fileName);
       
       if (imageUrl != null && mounted) {
         // URL encode the image URL to handle special characters

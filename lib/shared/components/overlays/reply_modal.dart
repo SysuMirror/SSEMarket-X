@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/comment_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/shared/components/feedback/comment_input.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
@@ -7,7 +7,6 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 /// 回复弹窗组件
 class ReplyModal extends StatefulWidget {
   final int postId;
-  final ApiService apiService;
   final String replyToName;
   final int? parentCommentId; // 主评论ID
   final int? targetCommentId; // 目标评论ID（子评论回复时使用）
@@ -17,7 +16,6 @@ class ReplyModal extends StatefulWidget {
   const ReplyModal({
     super.key,
     required this.postId,
-    required this.apiService,
     required this.replyToName,
     this.parentCommentId,
     this.targetCommentId,
@@ -30,6 +28,7 @@ class ReplyModal extends StatefulWidget {
 }
 
 class _ReplyModalState extends State<ReplyModal> {
+  final CommentService _commentService = CommentService();
   bool _closedBySend = false;
 
   @override
@@ -90,7 +89,6 @@ class _ReplyModalState extends State<ReplyModal> {
           // 回复输入区域：键盘收起且输入为空时自动关闭弹窗
           CommentInput(
             postId: widget.postId,
-            apiService: widget.apiService,
             placeholder: '回复 ${widget.replyToName}...',
             autoFocus: true, // 弹窗中自动聚焦
             onUnfocus: (currentText) {
@@ -118,7 +116,7 @@ class _ReplyModalState extends State<ReplyModal> {
       
       if (widget.parentCommentId != null) {
         // 回复评论（子评论）
-        success = await widget.apiService.sendSubComment(
+        success = await _commentService.sendSubComment(
           content: content,
           postId: widget.postId,
           parentCommentId: widget.parentCommentId!,
@@ -127,7 +125,7 @@ class _ReplyModalState extends State<ReplyModal> {
         );
       } else {
         // 直接回复帖子（主评论）
-        success = await widget.apiService.sendComment(
+        success = await _commentService.sendComment(
           content,
           widget.postId,
           user.phone,

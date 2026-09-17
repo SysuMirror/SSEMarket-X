@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/auth_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/utils/email_validator.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/views/auth/register_page.dart';
@@ -10,7 +11,6 @@ import 'package:sse_market_x/views/auth/privacy_policy_page.dart';
 import 'package:sse_market_x/shared/components/layout/auth_desktop_layout.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
-import 'package:sse_market_x/views/index_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -56,7 +56,8 @@ class _LoginFormState extends State<LoginForm> {
   bool _agreedToTerms = true;
   bool _obscurePassword = true;
 
-  final ApiService _apiService = ApiService();
+  final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -83,12 +84,12 @@ class _LoginFormState extends State<LoginForm> {
 
     setState(() => _isLoading = true);
     try {
-      final result = await _apiService.login(email, password);
+      final result = await _authService.login(email, password);
       if (!mounted) return;
 
       if (result != null && result.token.isNotEmpty) {
-        _apiService.setToken(result.token);
-        final user = await _apiService.getUserInfo();
+        _authService.setToken(result.token);
+        final user = await _userService.getUserInfo();
         if (!mounted) return;
 
         if (user.userId != 0) {
@@ -101,10 +102,6 @@ class _LoginFormState extends State<LoginForm> {
           if (!mounted) return;
           SnackBarHelper.show(context, '登录成功');
           // Navigation is handled by GoRouter redirect due to StorageService change
-          /* Navigator.of(context, rootNavigator: true).pushReplacement(
-            MaterialPageRoute(
-                builder: (_) => IndexPage(apiService: _apiService)),
-          ); */
         } else {
           SnackBarHelper.show(context, '获取用户信息失败');
         }
@@ -120,17 +117,14 @@ class _LoginFormState extends State<LoginForm> {
 
   void _onRegisterPressed() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-          builder: (_) =>
-              RegisterPage(apiService: _apiService, fromLogin: true)),
+      MaterialPageRoute(builder: (_) => const RegisterPage(fromLogin: true)),
     );
   }
 
   void _onResetPasswordPressed() {
     Navigator.of(context).push(
       MaterialPageRoute(
-          builder: (_) =>
-              ResetPasswordPage(apiService: _apiService, fromLogin: true)),
+          builder: (_) => const ResetPasswordPage(fromLogin: true)),
     );
   }
 

@@ -39,6 +39,13 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Android 11+ package visibility: url_launcher 开启 https 链接需要此声明,
+             否则 canLaunchUrl/launchUrl 查询不到浏览器而恒失败。
+             仅声明 https(全站 https),不加 http。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

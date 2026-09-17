@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/media_cache_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
@@ -22,15 +22,14 @@ import 'package:sse_market_x/views/profile/watch_later_page.dart';
 import 'package:sse_market_x/views/home/annual_report_page.dart';
 
 class MyPage extends StatefulWidget {
-  const MyPage({super.key, required this.apiService});
-
-  final ApiService apiService;
+  const MyPage({super.key});
 
   @override
   State<MyPage> createState() => _MyPageState();
 }
 
 class _MyPageState extends State<MyPage> {
+  final UserService _userService = UserService();
   UserModel? _user;
   bool _isLoading = false;
   bool _isWatchLaterEnabled = false;
@@ -80,10 +79,10 @@ class _MyPageState extends State<MyPage> {
   /// 刷新用户数据（后台静默更新）
   Future<void> _refreshUser() async {
     try {
-      final basic = await widget.apiService.getUserInfo();
+      final basic = await _userService.getUserInfo();
       UserModel detailed = basic;
       if (basic.phone.isNotEmpty) {
-        final d = await widget.apiService.getDetailedUserInfo(basic.phone);
+        final d = await _userService.getDetailedUserInfo(basic.phone);
         detailed = basic.copyWith(score: d.score, intro: d.intro);
       }
       if (!mounted) return;
@@ -229,7 +228,6 @@ class _MyPageState extends State<MyPage> {
             final result = await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => EditProfilePage(
-                  apiService: widget.apiService,
                   initialUser: _user!,
                 ),
               ),
@@ -387,7 +385,7 @@ class _MyPageState extends State<MyPage> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => BrowseHistoryPage(apiService: widget.apiService),
+              builder: (_) => const BrowseHistoryPage(),
             ),
           );
         },
@@ -400,7 +398,7 @@ class _MyPageState extends State<MyPage> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => FavoritesPage(apiService: widget.apiService),
+              builder: (_) => const FavoritesPage(),
             ),
           );
         },
@@ -412,7 +410,7 @@ class _MyPageState extends State<MyPage> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => PostHistoryPage(apiService: widget.apiService),
+              builder: (_) => const PostHistoryPage(),
             ),
           );
         },
@@ -429,7 +427,7 @@ class _MyPageState extends State<MyPage> {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => WatchLaterPage(apiService: widget.apiService),
+                builder: (_) => const WatchLaterPage(),
               ),
             );
           },
@@ -456,7 +454,6 @@ class _MyPageState extends State<MyPage> {
             await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => SettingsPage(
-                  apiService: widget.apiService,
                   userEmail: _user?.email ?? '',
                 ),
               ),
@@ -473,7 +470,7 @@ class _MyPageState extends State<MyPage> {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => FeedbackPage(apiService: widget.apiService),
+                builder: (_) => const FeedbackPage(),
               ),
             );
           },

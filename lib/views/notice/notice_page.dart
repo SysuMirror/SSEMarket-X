@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/notice_service.dart' as api_notice;
 import 'package:sse_market_x/core/models/notice_model.dart';
 import 'package:sse_market_x/core/utils/time_utils.dart';
 import 'package:sse_market_x/core/services/blur_effect_service.dart';
@@ -16,12 +16,10 @@ import 'package:sse_market_x/core/models/user_model.dart';
 import 'dart:async';
 
 class NoticePage extends StatefulWidget {
-  final ApiService apiService;
   final Function(UserModel)? onChatTap;
 
   const NoticePage({
     super.key,
-    required this.apiService,
     this.onChatTap,
   });
 
@@ -31,6 +29,7 @@ class NoticePage extends StatefulWidget {
 
 class _NoticePageState extends State<NoticePage>
     with AutomaticKeepAliveClientMixin {
+  final api_notice.NoticeService _noticeApi = api_notice.NoticeService();
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   List<Notice> _unreadNotices = [];
@@ -85,7 +84,7 @@ class _NoticePageState extends State<NoticePage>
     NoticeService().clearUnreadCount();
 
     try {
-      await Future.wait(noticesToMark.map((n) => widget.apiService.readNotice(n.noticeId)));
+      await Future.wait(noticesToMark.map((n) => _noticeApi.readNotice(n.noticeId)));
     } catch (e) {
       debugPrint('一键已读失败: $e');
     }
@@ -95,9 +94,9 @@ class _NoticePageState extends State<NoticePage>
     if (!refresh) setState(() => _isLoading = true);
 
     try {
-      final noticeNum = await widget.apiService.getNoticeNum();
-      final unreadList = await widget.apiService.getNotices(requireId: 0, pageSize: noticeNum.unreadTotalNum > 0 ? noticeNum.unreadTotalNum : 20, read: 0);
-      final readList = await widget.apiService.getNotices(requireId: 0, pageSize: noticeNum.readTotalNum > 0 ? noticeNum.readTotalNum : 20, read: 1);
+      final noticeNum = await _noticeApi.getNoticeNum();
+      final unreadList = await _noticeApi.getNotices(requireId: 0, pageSize: noticeNum.unreadTotalNum > 0 ? noticeNum.unreadTotalNum : 20, read: 0);
+      final readList = await _noticeApi.getNotices(requireId: 0, pageSize: noticeNum.readTotalNum > 0 ? noticeNum.readTotalNum : 20, read: 1);
 
       if (mounted) {
         setState(() {
@@ -182,7 +181,6 @@ class _NoticePageState extends State<NoticePage>
           // 私信列表
           ChatListPage(
             contentPadding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, bottomPadding + 16),
-            apiService: widget.apiService,
             onUserTap: (user) {
               if (widget.onChatTap != null) {
                 widget.onChatTap!(user);
@@ -190,8 +188,7 @@ class _NoticePageState extends State<NoticePage>
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ChatDetailPage(
-                      apiService: widget.apiService,
-                      targetUser: user, 
+                      targetUser: user,
                       isEmbedded: false,
                     ),
                   ),
@@ -420,7 +417,7 @@ class _NoticePageState extends State<NoticePage>
                           child: Row(
                             children: [
                               _buildActionButton('标记已读', () async {
-                                final success = await widget.apiService.readNotice(notice.noticeId);
+                                final success = await _noticeApi.readNotice(notice.noticeId);
                                 if (success) {
                                   // 更新 NoticeService 中的未读数
                                   NoticeService().decreaseUnreadCount();
@@ -431,7 +428,7 @@ class _NoticePageState extends State<NoticePage>
                               if (notice.postId > 0)
                                 _buildActionButton('查看原帖', () async {
                                   // 先标记已读
-                                  await widget.apiService.readNotice(notice.noticeId);
+                                  await _noticeApi.readNotice(notice.noticeId);
                                   // 更新 NoticeService 中的未读数
                                   NoticeService().decreaseUnreadCount();
                                   if (!mounted) return;
@@ -440,7 +437,7 @@ class _NoticePageState extends State<NoticePage>
                                   // 跳转
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => PostDetailPage(postId: notice.postId, apiService: widget.apiService),
+                                      builder: (_) => PostDetailPage(postId: notice.postId),
                                     ),
                                   );
                                 }),
@@ -455,7 +452,7 @@ class _NoticePageState extends State<NoticePage>
                               _buildActionButton('查看原帖', () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => PostDetailPage(postId: notice.postId, apiService: widget.apiService),
+                                    builder: (_) => PostDetailPage(postId: notice.postId),
                                   ),
                                 );
                               }),

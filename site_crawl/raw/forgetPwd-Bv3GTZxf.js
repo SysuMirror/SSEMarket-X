@@ -1,0 +1,1 @@
+import{r as d,d as a,s as n}from"./index-pcgjWmeH.js";async function p(t,e,o,r){try{return await(await d("/auth/modifyPassword",{method:"POST",headers:{"Content-Type":"application/json"},body:{email:t,password:a(e,"16bit secret key"),password2:a(o,"16bit secret key"),valiCode:r}},!1)).json()}catch(s){console.error(s),n("修改密码失败")}}export{p as u};

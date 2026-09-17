@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/chat_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/websocket_service.dart';
@@ -10,13 +10,11 @@ import 'package:sse_market_x/shared/components/media/cached_image.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class ChatListPage extends StatefulWidget {
-  final ApiService apiService;
   final Function(UserModel user) onUserTap;
   final EdgeInsetsGeometry? contentPadding;
 
   const ChatListPage({
     super.key,
-    required this.apiService,
     required this.onUserTap,
     this.contentPadding,
   });
@@ -27,6 +25,7 @@ class ChatListPage extends StatefulWidget {
 
 class _ChatListPageState extends State<ChatListPage>
     with AutomaticKeepAliveClientMixin {
+  final ChatService _chatService = ChatService();
   bool _isLoading = true;
   bool _hasLoadedOnce = false;
   final List<ChatContact> _contacts = [];
@@ -123,7 +122,7 @@ class _ChatListPageState extends State<ChatListPage>
     // 并行获取每个联系人的最新消息
     await Future.wait(_contacts.map((contact) async {
       try {
-        final messages = await widget.apiService.getChatHistory(
+        final messages = await _chatService.getChatHistory(
           currentUser.userId,
           contact.userId,
         );

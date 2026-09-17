@@ -1,0 +1,1 @@
+import{s as r}from"./index-pcgjWmeH.js";const s=1e3;function l(i){let e=0,t=!1;return async(...o)=>{if(t){r("提交中，请稍候…");return}const n=Date.now();if(n-e<s){r("操作太频繁，请稍后再试");return}e=n,t=!0;try{return await i(...o)}finally{t=!1}}}export{l as d};

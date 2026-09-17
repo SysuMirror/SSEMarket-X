@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/services/media_cache_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/watch_later_service.dart';
@@ -17,12 +17,10 @@ import 'package:sse_market_x/views/profile/cache_management_page.dart';
 import 'package:sse_market_x/shared/components/layout/layout_config.dart';
 
 class SettingsPage extends StatefulWidget {
-  final ApiService apiService;
   final String? userEmail;
 
   const SettingsPage({
     super.key,
-    required this.apiService,
     this.userEmail,
   });
 
@@ -31,6 +29,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  final UserService _userService = UserService();
   // bool _isNotificationEnabled = true; // TODO: 推送通知功能待实现
   bool _isEmailNotificationEnabled = false;
   // bool _isAutoPlay = true; // TODO: 自动播放功能待实现
@@ -203,7 +202,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ResetPasswordPage(
-                          apiService: widget.apiService,
                           initialEmail: widget.userEmail,
                         ),
                       ),
@@ -392,9 +390,9 @@ class _SettingsPageState extends State<SettingsPage> {
   /// 加载邮箱推送状态
   Future<void> _loadEmailPushStatus() async {
     try {
-      final userInfo = await widget.apiService.getUserInfo();
+      final userInfo = await _userService.getUserInfo();
       final detailedInfo =
-          await widget.apiService.getDetailedUserInfo(userInfo.phone);
+          await _userService.getDetailedUserInfo(userInfo.phone);
 
       if (mounted) {
         setState(() {
@@ -409,7 +407,7 @@ class _SettingsPageState extends State<SettingsPage> {
   /// 切换邮箱通知
   Future<void> _toggleEmailNotification(bool value) async {
     try {
-      final userInfo = await widget.apiService.getUserInfo();
+      final userInfo = await _userService.getUserInfo();
 
       if (userInfo.userId == 0) {
         if (mounted) {
@@ -418,7 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
 
-      final success = await widget.apiService.updateEmailPush(userInfo.userId);
+      final success = await _userService.updateEmailPush(userInfo.userId);
 
       if (mounted) {
         if (success) {

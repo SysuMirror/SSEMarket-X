@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/comment_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/comment_model.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
@@ -25,7 +27,6 @@ import 'package:sse_market_x/views/profile/user_profile_page.dart';
 
 class PostDetailPage extends StatefulWidget {
   final int postId;
-  final ApiService apiService;
   final bool isEmbedded;
   final PostModel? previewPost; // 预览模式或初始数据
   final PostModel? initialPost; // 从列表传递的初始数据（用于优化加载体验）
@@ -38,7 +39,6 @@ class PostDetailPage extends StatefulWidget {
   const PostDetailPage({
     super.key,
     required this.postId,
-    required this.apiService,
     this.isEmbedded = false,
     this.previewPost,
     this.initialPost,
@@ -54,6 +54,9 @@ class PostDetailPage extends StatefulWidget {
 
 class _PostDetailPageState extends State<PostDetailPage>
     with SingleTickerProviderStateMixin {
+  final PostService _postService = PostService();
+  final CommentService _commentService = CommentService();
+  final UserService _userService = UserService();
   late PostModel _post;
   UserModel _user = UserModel.empty();
   List<CommentModel> _comments = [];
@@ -328,7 +331,7 @@ class _PostDetailPageState extends State<PostDetailPage>
     try {
       if (widget.previewPost != null) {
         // Preview mode - use provided post data
-        final user = await widget.apiService.getUserInfo();
+        final user = await _userService.getUserInfo();
 
         if (!mounted) return;
 
@@ -346,7 +349,7 @@ class _PostDetailPageState extends State<PostDetailPage>
       }
 
       // Normal mode - fetch from API
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
 
       // 如果有初始数据，先更新用户信息，不重新获取帖子详情
       if (widget.initialPost != null && mounted) {
@@ -357,7 +360,7 @@ class _PostDetailPageState extends State<PostDetailPage>
       }
 
       final post =
-          await widget.apiService.getPostDetail(widget.postId, user.phone);
+          await _postService.getPostDetail(widget.postId, user.phone);
 
       if (!mounted) return;
 
@@ -402,18 +405,21 @@ class _PostDetailPageState extends State<PostDetailPage>
   }
 
   Future<void> _loadComments() async {
-    if (_user.phone.isEmpty) return;
+    // 打分帖评论走 rating/comment/list（仅需 token），普通帖沿用 showPcomments
+    if (widget.postType != 'rating' && _user.phone.isEmpty) return;
 
     setState(() {
       _isCommentsLoading = true;
     });
 
     try {
-      final comments = await widget.apiService.getComments(
-        widget.postId,
-        _user.phone,
-        postType: widget.postType,
-      );
+      final comments = widget.postType == 'rating'
+          ? await _commentService.getRatingComments(widget.postId)
+          : await _commentService.getComments(
+              widget.postId,
+              _user.phone,
+              postType: widget.postType,
+            );
       if (!mounted) return;
 
       setState(() {
@@ -443,7 +449,7 @@ class _PostDetailPageState extends State<PostDetailPage>
     });
 
     try {
-      final success = await widget.apiService.likePost(_post.id, _user.phone);
+      final success = await _postService.likePost(_post.id, _user.phone);
 
       if (success) {
         _hasChanges = true; // 标记有变化
@@ -486,7 +492,7 @@ class _PostDetailPageState extends State<PostDetailPage>
   /// 收藏/取消收藏
   Future<void> _onSavePost() async {
     try {
-      final success = await widget.apiService.savePost(_post.id, _user.phone);
+      final success = await _postService.savePost(_post.id, _user.phone);
       if (success && mounted) {
         setState(() {
           _isSaved = !_isSaved;
@@ -539,7 +545,7 @@ class _PostDetailPageState extends State<PostDetailPage>
     if (confirm != true) return;
 
     try {
-      final success = await widget.apiService.deletePost(_post.id);
+      final success = await _postService.deletePost(_post.id);
       if (success && mounted) {
         SnackBarHelper.show(context, '已删除');
         Navigator.of(context).pop({'deleted': true}); // 返回删除标记
@@ -579,7 +585,6 @@ class _PostDetailPageState extends State<PostDetailPage>
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => UserProfilePage(
-          apiService: widget.apiService,
           userId: userId,
           isEmbedded: false,
         ),
@@ -814,7 +819,6 @@ class _PostDetailPageState extends State<PostDetailPage>
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => UserProfilePage(
-                  apiService: widget.apiService,
                   userId: 0,
                   userPhone: _post.authorPhone,
                   isEmbedded: false,
@@ -885,7 +889,6 @@ class _PostDetailPageState extends State<PostDetailPage>
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => UserProfilePage(
-                            apiService: widget.apiService,
                             userId: 0,
                             userPhone: _post.authorPhone,
                             isEmbedded: false,
@@ -949,7 +952,6 @@ class _PostDetailPageState extends State<PostDetailPage>
 
     return LatexMarkdownWithPostPreview(
       data: _post.content,
-      apiService: widget.apiService,
       selectable: true, // 支持长按选择文字
     );
   }
@@ -1045,13 +1047,12 @@ class _PostDetailPageState extends State<PostDetailPage>
               ),
               child: CommentInput(
                 postId: widget.postId,
-                apiService: widget.apiService,
                 onSend: (content) async {
                   bool success;
                   if (widget.onSendComment != null) {
                     success = await widget.onSendComment!(content);
                   } else {
-                    success = await widget.apiService.sendComment(
+                    success = await _commentService.sendComment(
                       content,
                       widget.postId,
                       _user.phone,
@@ -1100,7 +1101,7 @@ class _PostDetailPageState extends State<PostDetailPage>
                     postId: widget.postId,
                     currentUserPhone: _user.phone,
                     onLikeTap: () async {
-                      return await widget.apiService
+                      return await _commentService
                           .likeComment(comment.id, _user.phone);
                     },
                     onReplyTap: () {
@@ -1113,7 +1114,7 @@ class _PostDetailPageState extends State<PostDetailPage>
                           targetUserName: targetUserName);
                     },
                     onSubLikeTap: (subCommentId) async {
-                      return await widget.apiService
+                      return await _commentService
                           .likeSubComment(subCommentId, _user.phone);
                     },
                     onSubDeleteTap: (subCommentId) async {
@@ -1127,7 +1128,7 @@ class _PostDetailPageState extends State<PostDetailPage>
                       );
 
                       if (confirm == true) {
-                        final success = await widget.apiService
+                        final success = await _commentService
                             .deleteSubComment(subCommentId);
                         if (success) {
                           _loadComments();
@@ -1151,7 +1152,7 @@ class _PostDetailPageState extends State<PostDetailPage>
 
                       if (confirm == true) {
                         final success =
-                            await widget.apiService.deleteComment(comment.id);
+                            await _commentService.deleteComment(comment.id);
                         if (success) {
                           _loadComments();
                           if (mounted) {
@@ -1191,7 +1192,6 @@ class _PostDetailPageState extends State<PostDetailPage>
             constraints: const BoxConstraints(maxWidth: 600),
             child: ReplyModal(
               postId: widget.postId,
-              apiService: widget.apiService,
               replyToName: replyToName,
               parentCommentId: parentCommentId,
               targetCommentId: targetCommentId,
@@ -1217,7 +1217,6 @@ class _PostDetailPageState extends State<PostDetailPage>
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: ReplyModal(
             postId: widget.postId,
-            apiService: widget.apiService,
             replyToName: replyToName,
             parentCommentId: parentCommentId,
             targetCommentId: targetCommentId,

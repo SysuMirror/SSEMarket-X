@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/notice_service.dart' as api_notice;
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/websocket_service.dart';
@@ -15,14 +15,12 @@ class SideMenu extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemTap;
   final VoidCallback onAvatarTap;
-  final ApiService apiService;
 
   const SideMenu({
     super.key,
     required this.selectedIndex,
     required this.onItemTap,
     required this.onAvatarTap,
-    required this.apiService,
   });
 
   @override
@@ -30,6 +28,7 @@ class SideMenu extends StatefulWidget {
 }
 
 class _SideMenuState extends State<SideMenu> {
+  final api_notice.NoticeService _noticeApi = api_notice.NoticeService();
   int _unreadCount = 0;
   int _noticeUnreadCount = 0;
   StreamSubscription<int>? _unreadSubscription;
@@ -44,7 +43,7 @@ class _SideMenuState extends State<SideMenu> {
 
   Future<void> _fetchNoticeUnreadCount() async {
     try {
-      final noticeNum = await widget.apiService.getNoticeNum();
+      final noticeNum = await _noticeApi.getNoticeNum();
       final noticeService = NoticeService();
       noticeService.updateUnreadCount(noticeNum.unreadTotalNum);
       

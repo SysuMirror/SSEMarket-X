@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/notice_service.dart' as api_notice;
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
@@ -16,6 +17,7 @@ import 'package:sse_market_x/views/notice/notice_page.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 import 'package:sse_market_x/views/shop/product_detail_page.dart';
 import 'package:sse_market_x/views/todo/score_page.dart';
+import 'package:sse_market_x/views/workbench/workbench_page.dart';
 import 'package:sse_market_x/shared/components/cards/post_preview_card.dart';
 import 'package:sse_market_x/shared/components/layout/layout_config.dart';
 import 'package:sse_market_x/shared/components/layout/side_menu.dart';
@@ -38,9 +40,7 @@ enum DetailContentType {
 }
 
 class IndexPage extends StatefulWidget {
-  const IndexPage({super.key, required this.apiService});
-
-  final ApiService apiService;
+  const IndexPage({super.key});
 
   @override
   State<IndexPage> createState() => _IndexPageState();
@@ -62,11 +62,11 @@ class _DetailNavigatorObserver extends NavigatorObserver {
 }
 
 class _IndexPageState extends State<IndexPage> {
+  final UserService _userService = UserService();
+  final api_notice.NoticeService _noticeApi = api_notice.NoticeService();
   int _currentIndex = 0;
   int? _selectedPostId; // For desktop 3-column layout
   PostModel? _selectedPost; // Store selected post model for init data
-  int?
-      _currentDetailPostId; // Track current post in detail panel (Legacy, can be removed but kept for compatibility if needed)
   int? _currentDetailProductId; // Track current product in detail panel
   UserModel? _selectedChatUser; // Track selected user for chat detail
 
@@ -93,6 +93,11 @@ class _IndexPageState extends State<IndexPage> {
   int _noticeUnreadCount = 0;
   StreamSubscription<int>? _unreadSubscription;
   StreamSubscription<int>? _noticeUnreadSubscription;
+
+  // 移动端底栏 5 槽（视觉从左到右）：首页、消息、[中央发帖钮]、工作台、我的。
+  // 槽位序 -> tab 序（_buildBodyForTab 的 index 语义）。
+  // 注意：移动端与桌面端共用 _currentIndex，统一表示 tab 序，不再用槽位序。
+  static const List<int> _mobileSlotToTab = [0, 4, 1, 5, 6];
 
   // Keys for nested navigators to maintain state per tab
   final Map<int, GlobalKey<NavigatorState>> _navigatorKeys = {
@@ -186,7 +191,7 @@ class _IndexPageState extends State<IndexPage> {
   /// 获取通知未读数
   Future<void> _fetchNoticeUnreadCount() async {
     try {
-      final noticeNum = await widget.apiService.getNoticeNum();
+      final noticeNum = await _noticeApi.getNoticeNum();
       final noticeService = NoticeService();
       noticeService.updateUnreadCount(noticeNum.unreadTotalNum);
 
@@ -216,14 +221,14 @@ class _IndexPageState extends State<IndexPage> {
 
     try {
       // 获取基本用户信息
-      final basicUser = await widget.apiService.getUserInfo();
+      final basicUser = await _userService.getUserInfo();
       UserModel detailedUser = basicUser;
 
       // 如果有手机号，获取详细信息（包含 score 和 intro）
       if (basicUser.phone.isNotEmpty) {
         try {
           final detailed =
-              await widget.apiService.getDetailedUserInfo(basicUser.phone);
+              await _userService.getDetailedUserInfo(basicUser.phone);
           // 合并详细信息到基本信息
           detailedUser = basicUser.copyWith(
             score: detailed.score,
@@ -247,15 +252,6 @@ class _IndexPageState extends State<IndexPage> {
     }
   }
 
-  /// Convert mobile bottom nav index to unified tab index
-  /// Mobile: [0:Home, 1:Score, 2:Shop, 3:Message, 4:Profile]
-  /// Unified: [0:Home, 1:CreatePost, 2:Score, 3:Shop, 4:Message, 5:Unused, 6:Profile]
-  int _getMobileTabIndex(int mobileIndex) {
-    if (mobileIndex == 0) return 0; // Home
-    if (mobileIndex == 4) return 6; // Profile
-    return mobileIndex + 1; // Score(1->2), Shop(2->3), Message(3->4)
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -276,19 +272,35 @@ class _IndexPageState extends State<IndexPage> {
     );
   }
 
+  /// 当前 tab 在移动端底栏对应的槽位序；若当前 tab 不在移动端映射内
+  /// （如从桌面布局收窄到 <600px），回退到首页槽位避免越界
+  int _mobileSlotForCurrentTab() {
+    final slot = _mobileSlotToTab.indexOf(_currentIndex);
+    return slot < 0 ? 0 : slot;
+  }
+
   Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: context.surfaceColor,
       extendBody: true,
+      // 中央骑边发帖钮：一半凸出底栏顶边、下半与 bar 表面相连（不挖 notch），实色不参与毛玻璃
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: _buildCenterPostButton(),
       body: IndexedStack(
         // Remove SafeArea to allow content behind/under
-        index: _currentIndex,
+        // children 按 _mobileSlotToTab 槽位顺序排列：首页、消息、发帖、工作台、我的
+        index: _mobileSlotForCurrentTab(),
         children: [
-          _buildBodyForTab(0, isDesktop: false, isThreeColumn: false), // 首页
-          _buildBodyForTab(2, isDesktop: false, isThreeColumn: false), // 打分
-          _buildBodyForTab(3, isDesktop: false, isThreeColumn: false), // 闲置
-          _buildBodyForTab(4, isDesktop: false, isThreeColumn: false), // 消息
-          _buildBodyForTab(6, isDesktop: false, isThreeColumn: false), // 我的
+          _buildBodyForTab(_mobileSlotToTab[0],
+              isDesktop: false, isThreeColumn: false), // 首页
+          _buildBodyForTab(_mobileSlotToTab[1],
+              isDesktop: false, isThreeColumn: false), // 消息
+          _buildBodyForTab(_mobileSlotToTab[2],
+              isDesktop: false, isThreeColumn: false), // 发帖
+          _buildBodyForTab(_mobileSlotToTab[3],
+              isDesktop: false, isThreeColumn: false), // 工作台
+          _buildBodyForTab(_mobileSlotToTab[4],
+              isDesktop: false, isThreeColumn: false), // 我的
         ],
       ),
       bottomNavigationBar: ValueListenableBuilder<bool>(
@@ -304,7 +316,7 @@ class _IndexPageState extends State<IndexPage> {
               ),
             ),
             child: BottomNavigationBar(
-              currentIndex: _currentIndex,
+              currentIndex: _mobileSlotForCurrentTab(),
               type: BottomNavigationBarType.fixed,
               backgroundColor: Colors.transparent, // Transparent for blur
               selectedItemColor: AppColors.primary,
@@ -336,44 +348,6 @@ class _IndexPageState extends State<IndexPage> {
                 BottomNavigationBarItem(
                   icon: Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/todo_normal_new.svg',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  activeIcon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/todo_selected_new.svg',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  label: '打分',
-                ),
-                BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/shop_normal.svg',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  activeIcon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/shop_selected.svg',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  label: '闲置',
-                ),
-                BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
                     child: _buildMessageIcon(isSelected: false),
                   ),
                   activeIcon: Padding(
@@ -381,6 +355,22 @@ class _IndexPageState extends State<IndexPage> {
                     child: _buildMessageIcon(isSelected: true),
                   ),
                   label: '消息',
+                ),
+                // 中央槽位：由悬浮发帖钮承担，此处仅占位保持 5 槽布局
+                const BottomNavigationBarItem(
+                  icon: SizedBox(width: 24, height: 24),
+                  label: '',
+                ),
+                BottomNavigationBarItem(
+                  icon: const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Icon(Icons.dashboard_outlined, size: 24),
+                  ),
+                  activeIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Icon(Icons.dashboard, size: 24),
+                  ),
+                  label: '工作台',
                 ),
                 BottomNavigationBarItem(
                   icon: Padding(
@@ -402,7 +392,8 @@ class _IndexPageState extends State<IndexPage> {
                   label: '我的',
                 ),
               ],
-              onTap: (index) {
+              onTap: (slot) {
+                final index = _mobileSlotToTab[slot];
                 setState(() {
                   _currentIndex = index;
                 });
@@ -411,7 +402,7 @@ class _IndexPageState extends State<IndexPage> {
                   _homePageKey.currentState?.silentRefresh();
                 }
                 // 切换到消息页时刷新通知未读数
-                if (index == 3) {
+                if (index == 4) {
                   _fetchNoticeUnreadCount();
                 }
               },
@@ -430,6 +421,34 @@ class _IndexPageState extends State<IndexPage> {
           }
         },
       ),
+    );
+  }
+
+  /// 底栏中央骑边发帖钮：实色 AppColors.primary + 白色加号，
+  /// centerDocked 使圆钮一半凸出 bar 顶边、下半骑在 bar 上（无缝、无 notch），
+  /// 不参与毛玻璃；点击切换到嵌入式发帖 tab
+  Widget _buildCenterPostButton() {
+    // 键盘弹出时隐藏，避免按钮悬浮在键盘上方
+    if (MediaQuery.of(context).viewInsets.bottom > 0) {
+      return const SizedBox.shrink();
+    }
+    final isPostingActive = _currentIndex == 1;
+    return FloatingActionButton(
+      heroTag: 'mobile_center_post_fab', // 避免与其他页面的 FAB hero 冲突
+      backgroundColor: AppColors.primary,
+      elevation: isPostingActive ? 6 : 4,
+      // 发帖中选中态：外圈 primary 半透明描边 + 加深阴影
+      shape: CircleBorder(
+        side: isPostingActive
+            ? BorderSide(color: AppColors.primary.withOpacity(0.35), width: 4)
+            : BorderSide.none,
+      ),
+      onPressed: () {
+        setState(() {
+          _currentIndex = 1; // 发帖 tab
+        });
+      },
+      child: const Icon(Icons.add, color: Colors.white, size: 32),
     );
   }
 
@@ -514,7 +533,6 @@ class _IndexPageState extends State<IndexPage> {
                   SizedBox(
                     width: sideWidth,
                     child: SideMenu(
-                      apiService: widget.apiService,
                       selectedIndex: _currentIndex,
                       onItemTap: (index) {
                         setState(() {
@@ -688,7 +706,6 @@ class _IndexPageState extends State<IndexPage> {
                 SizedBox(
                   width: sideWidth,
                   child: SideMenu(
-                    apiService: widget.apiService,
                     selectedIndex: _currentIndex,
                     onItemTap: (index) {
                       setState(() {
@@ -746,14 +763,14 @@ class _IndexPageState extends State<IndexPage> {
       case 0:
         return HomePage(
           key: _homePageKey,
-          apiService: widget.apiService,
           showHeaderAvatar: !isDesktop,
-          showHeaderAddButton: !isDesktop,
+          // 发帖入口已移至移动端底栏中央钮（桌面端由侧栏「新建」承担），header 不再显示「+」
+          showHeaderAddButton: false,
           onAvatarTap: () {
             if (!isDesktop) {
               // 在移动端：头像点击等同于点击底部导航栏的“我的”tab
               setState(() {
-                _currentIndex = 4; // 底部 "我的" 的 index
+                _currentIndex = 6; // “我的” tab 序
               });
             }
           },
@@ -763,7 +780,6 @@ class _IndexPageState extends State<IndexPage> {
         );
       case 1:
         return CreatePostPage(
-          apiService: widget.apiService,
           isEmbedded: true,
           isActive: _currentIndex == 1,
           onPreviewUpdate: isThreeColumn ? _updatePostPreview : null,
@@ -778,10 +794,9 @@ class _IndexPageState extends State<IndexPage> {
           },
         );
       case 2:
-        return ScorePage(apiService: widget.apiService);
+        return const ScorePage();
       case 3:
         return ShopPage(
-          apiService: widget.apiService,
           onProductTap: isThreeColumn
               ? (productId) => _updateProductDetail(productId)
               : null,
@@ -789,15 +804,14 @@ class _IndexPageState extends State<IndexPage> {
       case 4:
         // Message Page (includes Chat and Notice)
         return NoticePage(
-          apiService: widget.apiService,
           onChatTap:
               isThreeColumn ? (user) => _navigateToChatDetail(user) : null,
         );
       case 5:
-        // Unused (previously Chat)
-        return const SizedBox();
+        // 工作台（移动端底栏入口；桌面侧栏无此入口，不会切换到该 tab）
+        return const WorkbenchPage();
       case 6:
-        return MyPage(apiService: widget.apiService);
+        return const MyPage();
       default:
         return _buildTabPlaceholder('首页');
     }
@@ -812,7 +826,6 @@ class _IndexPageState extends State<IndexPage> {
             if (isInitialRoute) {
               setState(() {
                 _selectedPostId = null;
-                _currentDetailPostId = null;
                 _currentDetailProductId = null;
                 _selectedChatUser = null;
                 _detailContentType = DetailContentType.placeholder;
@@ -842,7 +855,6 @@ class _IndexPageState extends State<IndexPage> {
         }
         return PostDetailPage(
           postId: _selectedPostId!,
-          apiService: widget.apiService,
           isEmbedded: true,
         );
       case DetailContentType.scorePostDetail:
@@ -851,7 +863,6 @@ class _IndexPageState extends State<IndexPage> {
         }
         return ScorePostDetailPage(
           postId: _selectedPostId!,
-          apiService: widget.apiService,
           initialPost: _selectedPost,
         );
       case DetailContentType.postPreview:
@@ -864,7 +875,6 @@ class _IndexPageState extends State<IndexPage> {
           return _buildPlaceholderContent();
         }
         return ChatDetailPage(
-          apiService: widget.apiService,
           targetUser: _selectedChatUser!,
           isEmbedded: true,
         );
@@ -932,7 +942,6 @@ class _IndexPageState extends State<IndexPage> {
 
     return ProductDetailPage(
       productId: productId,
-      apiService: widget.apiService,
       isEmbedded: true,
     );
   }
@@ -946,7 +955,6 @@ class _IndexPageState extends State<IndexPage> {
     _detailNavigatorKey.currentState?.pushReplacement(
       MaterialPageRoute(
         builder: (_) => ChatDetailPage(
-          apiService: widget.apiService,
           targetUser: user,
           isEmbedded: true,
         ),
@@ -1050,7 +1058,6 @@ class _IndexPageState extends State<IndexPage> {
       MaterialPageRoute(
         builder: (_) => ProductDetailPage(
           productId: productId,
-          apiService: widget.apiService,
           isEmbedded: true,
         ),
       ),

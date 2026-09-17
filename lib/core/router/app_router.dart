@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/views/auth/login_page.dart';
 import 'package:sse_market_x/views/index_page.dart';
@@ -48,7 +47,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
-        return IndexPage(apiService: ApiService());
+        return const IndexPage();
       },
     ),
     GoRoute(
@@ -69,11 +68,10 @@ final GoRouter appRouter = GoRouter(
         final int? id = int.tryParse(idStr ?? '');
         if (id == null) {
           // Handle invalid ID, redirect to home
-          return IndexPage(apiService: ApiService());
+          return const IndexPage();
         }
         return PostDetailPage(
           postId: id,
-          apiService: ApiService(),
         );
       },
     ),

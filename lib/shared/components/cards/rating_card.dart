@@ -1,167 +1,238 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/models/post_model.dart';
-import 'package:sse_market_x/shared/components/cards/post_card.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import 'package:sse_market_x/core/models/rating_model.dart';
+import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
-/// 打分帖子卡片组件
-class RatingCard extends StatelessWidget {
-  final PostModel post;
-  final bool isDense;
-  final bool hidePartition;
+/// 评分帖卡片（对齐官网 RatingCard：标题 / 人评·评·阅 meta / 右侧综合评分 /
+/// 愛心讚（卡内乐观更新，失败回滚 + SnackBar）/ 分類連結）
+class RatingCard extends StatefulWidget {
+  final RatingPost ratingPost;
+
+  /// 隐藏分类链接（如浏览历史页用户已在对应分类下）
+  final bool hideCategory;
   final VoidCallback? onTap;
+  final ValueChanged<String>? onCategoryTap;
   final Future<bool> Function()? onLikeTap;
 
   const RatingCard({
     super.key,
-    required this.post,
-    this.isDense = false,
-    this.hidePartition = false,
+    required this.ratingPost,
+    this.hideCategory = false,
     this.onTap,
+    this.onCategoryTap,
     this.onLikeTap,
   });
 
-  int _getTotalRatings() {
-    return post.stars.fold(0, (sum, count) => sum + count);
+  @override
+  State<RatingCard> createState() => _RatingCardState();
+}
+
+class _RatingCardState extends State<RatingCard> {
+  late bool _isLiked;
+  late int _likeCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLiked = widget.ratingPost.isLiked;
+    _likeCount = widget.ratingPost.like;
+  }
+
+  @override
+  void didUpdateWidget(covariant RatingCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.ratingPost.ratingPostId != widget.ratingPost.ratingPostId) {
+      _isLiked = widget.ratingPost.isLiked;
+      _likeCount = widget.ratingPost.like;
+    }
+  }
+
+  Future<void> _handleLikeTap() async {
+    if (widget.onLikeTap == null) return;
+
+    final wasLiked = _isLiked;
+    final oldCount = _likeCount;
+
+    setState(() {
+      _isLiked = !_isLiked;
+      _likeCount = _isLiked ? _likeCount + 1 : (_likeCount - 1).clamp(0, 999999);
+    });
+
+    try {
+      final success = await widget.onLikeTap!();
+      if (!success && mounted) {
+        setState(() {
+          _isLiked = wasLiked;
+          _likeCount = oldCount;
+        });
+        SnackBarHelper.show(context, '操作失败');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLiked = wasLiked;
+          _likeCount = oldCount;
+        });
+        SnackBarHelper.show(context, '操作失败');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isDense) {
-      return PostCard(
-        post: post,
-        isDense: isDense,
-        showRating: false,
-        hidePartition: hidePartition,
-        topWidget: _buildEmbeddedRating(context),
-        onTap: onTap,
-        onLikeTap: onLikeTap,
-      );
-    }
+    final post = widget.ratingPost;
 
-    return Stack(
-      children: [
-        PostCard(
-          post: post,
-          isDense: isDense,
-          showRating: false,
-          hidePartition: hidePartition,
-          onTap: onTap,
-          onLikeTap: onLikeTap,
-        ),
-        // 评分徽章 - 右上角
-        Positioned(
-          top: 16,
-          right: 16,
-          child: _buildRatingBadge(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmbeddedRating(BuildContext context) {
-    final totalRatings = _getTotalRatings();
-    
-    return Row(
-      children: [
-        // Rating Capsule
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.ratingBg, // Light blue background
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                size: 16,
-                color: AppColors.ratingStar, // Primary blue
-              ),
-              const SizedBox(width: 4),
-              Text(
-                post.rating.toStringAsFixed(1),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.ratingText, // Primary blue
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.title.isEmpty ? '未命名评分' : post.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: context.textPrimaryColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${post.totalRatings} 人评 · ${post.comment} 评 · ${post.browse} 阅',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: context.textSecondaryColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildScoreBadge(context, post),
+                  ],
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$totalRatings人评分',
-          style: TextStyle(
-            fontSize: 12,
-            color: context.textSecondaryColor,
-          ),
-        ),
-        
-        const Spacer(), // Push partition to the right
-        
-        // Partition info
-        if (post.partition.isNotEmpty && !hidePartition)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: context.backgroundColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '#${post.partition}',
-              style: TextStyle(
-                fontSize: 11,
-                color: context.textSecondaryColor,
-              ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (post.categoryName.isNotEmpty && !widget.hideCategory)
+                      Flexible(child: _buildCategoryLink(context, post)),
+                    const Spacer(),
+                    _buildLikeButton(context),
+                  ],
+                ),
+              ],
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 
-  Widget _buildRatingBadge(BuildContext context) {
-    final totalRatings = _getTotalRatings();
-    
+  /// 右侧综合评分徽章
+  Widget _buildScoreBadge(BuildContext context, RatingPost post) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                post.rating.toStringAsFixed(1),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 3),
-              const Icon(
-                Icons.star,
-                size: 16,
+          Text(
+            post.averageRating.toStringAsFixed(1),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 3),
+          const Icon(Icons.star_rounded, size: 16, color: AppColors.primary),
+        ],
+      ),
+    );
+  }
+
+  /// 分类链接（点击切换到该分类）
+  Widget _buildCategoryLink(BuildContext context, RatingPost post) {
+    return GestureDetector(
+      onTap: widget.onCategoryTap == null
+          ? null
+          : () => widget.onCategoryTap!(post.categoryName),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.folder_outlined,
+            size: 14,
+            color: AppColors.primary.withOpacity(0.7),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              post.categoryName,
+              style: const TextStyle(
+                fontSize: 12,
                 color: AppColors.primary,
               ),
-            ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const SizedBox(height: 2),
+        ],
+      ),
+    );
+  }
+
+  /// 愛心讚（乐观更新在卡内，同 PostCard 慣例；失败回滚 + SnackBar）
+  Widget _buildLikeButton(BuildContext context) {
+    return GestureDetector(
+      onTap: _handleLikeTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            _isLiked
+                ? 'assets/icons/ic_like_filled.svg'
+                : 'assets/icons/ic_like.svg',
+            width: 18,
+            height: 18,
+            colorFilter: ColorFilter.mode(
+              _isLiked ? Colors.red : context.textSecondaryColor,
+              BlendMode.srcIn,
+            ),
+          ),
+          const SizedBox(width: 4),
           Text(
-            '$totalRatings人',
+            '$_likeCount',
             style: TextStyle(
-              fontSize: 11,
-              color: context.textSecondaryColor,
+              fontSize: 13,
+              color: _isLiked ? Colors.red : context.textSecondaryColor,
             ),
           ),
         ],

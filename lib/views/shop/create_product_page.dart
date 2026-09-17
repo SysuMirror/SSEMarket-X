@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/shop_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/shared/components/media/image_editor.dart';
 import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
@@ -10,18 +11,15 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 /// 发布闲置物品页面
 class CreateProductPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const CreateProductPage({
-    super.key,
-    required this.apiService,
-  });
+  const CreateProductPage({super.key});
 
   @override
   State<CreateProductPage> createState() => _CreateProductPageState();
 }
 
 class _CreateProductPageState extends State<CreateProductPage> {
+  final ShopService _shopService = ShopService();
+  final UserService _userService = UserService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -113,7 +111,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
       for (int i = 0; i < _selectedImages.length; i++) {
         final bytes = _selectedImages[i];
         final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}_$i.png';
-        final url = await widget.apiService.uploadPhoto(bytes, fileName);
+        final url = await _userService.uploadPhoto(bytes, fileName);
         if (url != null) {
           imageUrls.add(url);
         } else {
@@ -139,7 +137,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
         return;
       }
 
-      final success = await widget.apiService.postProduct(
+      final success = await _shopService.postProduct(
         userId: user.userId,
         price: int.parse(_priceController.text.trim()),
         title: _nameController.text.trim(),

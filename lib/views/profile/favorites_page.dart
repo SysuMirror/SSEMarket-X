@@ -1,28 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/api_types.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 import 'package:sse_market_x/shared/components/loading/skeleton_loader.dart';
+import 'package:sse_market_x/shared/components/feedback/content_upgrading_placeholder.dart';
 import 'package:sse_market_x/shared/components/loading/loading_indicator.dart';
 import 'package:sse_market_x/shared/components/cards/post_card.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class FavoritesPage extends StatefulWidget {
-  final ApiService apiService;
-
-  const FavoritesPage({super.key, required this.apiService});
+  const FavoritesPage({super.key});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   final ScrollController _scrollController = ScrollController();
   List<PostModel> _posts = [];
   UserModel _user = UserModel.empty();
   bool _isLoading = false;
   bool _isInitialLoading = true; // 初始加载状态
+  bool _hasFormatError = false; // 响应结构不兼容，显示「内容升级中」
   bool _hasMore = true;
   int _offset = 0;
   static const int _pageSize = 20;
@@ -51,7 +55,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> _loadUserAndFavorites() async {
     try {
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
       if (mounted) {
         setState(() {
           _user = user;
@@ -76,7 +80,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
 
     try {
-      final posts = await widget.apiService.getPosts(
+      final result = await _postService.getPosts(
         GetPostsParams(
           limit: _pageSize,
           offset: _offset,
@@ -92,15 +96,27 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
       setState(() {
         if (refresh) {
-          _posts = posts;
+          // 首页/刷新：置顶帖插顶部（如有）；续载只追加一般帖
+          _posts = [...result.pinned, ...result.posts];
         } else {
-          _posts.addAll(posts);
+          _posts.addAll(result.posts);
         }
-        _offset += posts.length;
-        _hasMore = posts.length == _pageSize;
+        // offset 只按一般帖推进，不被置顶帖污染
+        _offset += result.posts.length;
+        _hasMore = result.posts.length >= _pageSize;
         _isLoading = false;
         _isInitialLoading = false;
+        _hasFormatError = false;
       });
+    } on ApiResponseFormatError {
+      // 响应结构不兼容：显示「内容升级中」
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isInitialLoading = false;
+          _hasFormatError = true;
+        });
+      }
     } catch (e) {
       debugPrint('加载收藏失败: $e');
       if (mounted) {
@@ -147,6 +163,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
 
     if (_posts.isEmpty && !_isLoading) {
+      // 响应结构不兼容时显示「内容升级中」
+      if (_hasFormatError) {
+        return const ContentUpgradingPlaceholder();
+      }
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -195,7 +215,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 MaterialPageRoute(
                   builder: (_) => PostDetailPage(
                     postId: post.id,
-                    apiService: widget.apiService,
                     initialPost: post, // 传递初始数据
                   ),
                 ),
@@ -213,7 +232,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               }
             },
             onLikeTap: () async {
-              return widget.apiService.likePost(post.id, _user.phone);
+              return _postService.likePost(post.id, _user.phone);
             },
           );
         },

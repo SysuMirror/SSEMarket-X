@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/views/post/markdown_help_page.dart';
 import 'package:sse_market_x/shared/components/markdown/latex_markdown.dart';
 import 'package:sse_market_x/shared/components/media/image_editor.dart';
@@ -13,7 +13,6 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 /// 评论输入组件
 class CommentInput extends StatefulWidget {
   final int postId;
-  final ApiService apiService;
   final Future<bool> Function(String content) onSend;
   final String placeholder;
   final bool autoFocus;
@@ -23,7 +22,6 @@ class CommentInput extends StatefulWidget {
   const CommentInput({
     super.key,
     required this.postId,
-    required this.apiService,
     required this.onSend,
     this.placeholder = '支持Markdown语法',
     this.autoFocus = false,
@@ -35,6 +33,7 @@ class CommentInput extends StatefulWidget {
 }
 
 class _CommentInputState extends State<CommentInput> {
+  final UserService _userService = UserService();
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final GlobalKey _kaomojiButtonKey = GlobalKey();
@@ -498,7 +497,7 @@ class _CommentInputState extends State<CommentInput> {
       });
       
       final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.png';
-      final imageUrl = await widget.apiService.uploadPhoto(editedBytes, fileName);
+      final imageUrl = await _userService.uploadPhoto(editedBytes, fileName);
       
       if (imageUrl != null && mounted) {
         // URL encode the image URL to handle special characters

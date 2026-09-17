@@ -6,7 +6,8 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:markdown/markdown.dart' as m;
 import 'package:markdown_widget/markdown_widget.dart' hide ImageViewer, MarkdownWidget;
 import 'package:markdown_widget/markdown_widget.dart' as mw show MarkdownWidget;
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/services/media_cache_service.dart';
 import 'package:sse_market_x/shared/components/media/image_viewer.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
@@ -899,11 +900,9 @@ List<int> extractPostIds(String content) {
 /// 显示为可点击的帖子标题，点击后跳转到帖子详情
 class _PostLinkInline extends StatefulWidget {
   final int postId;
-  final ApiService apiService;
 
   const _PostLinkInline({
     required this.postId,
-    required this.apiService,
   });
 
   @override
@@ -911,6 +910,8 @@ class _PostLinkInline extends StatefulWidget {
 }
 
 class _PostLinkInlineState extends State<_PostLinkInline> {
+  final UserService _userService = UserService();
+  final PostService _postService = PostService();
   String? _title;
   bool _isLoading = true;
   bool _hasError = false;
@@ -923,8 +924,8 @@ class _PostLinkInlineState extends State<_PostLinkInline> {
 
   Future<void> _loadPostTitle() async {
     try {
-      final user = await widget.apiService.getUserInfo();
-      final post = await widget.apiService.getPostDetail(widget.postId, user.phone);
+      final user = await _userService.getUserInfo();
+      final post = await _postService.getPostDetail(widget.postId, user.phone);
 
       if (mounted) {
         setState(() {
@@ -948,7 +949,6 @@ class _PostLinkInlineState extends State<_PostLinkInline> {
       MaterialPageRoute(
         builder: (_) => PostDetailPage(
           postId: widget.postId,
-          apiService: widget.apiService,
         ),
       ),
     );
@@ -1055,7 +1055,6 @@ class _PostLinkInlineState extends State<_PostLinkInline> {
 /// 在普通 LatexMarkdown 基础上，自动解析帖子链接并替换为可点击的标题
 class LatexMarkdownWithPostPreview extends StatelessWidget {
   final String data;
-  final ApiService apiService;
   final bool selectable;
   final MarkdownStyleSheet? styleSheet;
   final bool enableImageCache;
@@ -1065,7 +1064,6 @@ class LatexMarkdownWithPostPreview extends StatelessWidget {
   const LatexMarkdownWithPostPreview({
     super.key,
     required this.data,
-    required this.apiService,
     this.selectable = false,
     this.styleSheet,
     this.enableImageCache = true,
@@ -1122,7 +1120,6 @@ class LatexMarkdownWithPostPreview extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: _PostLinkInline(
                 postId: postId,
-                apiService: apiService,
               ),
             ),
           ));

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/chat_service.dart';
+import 'package:sse_market_x/core/api/user_service.dart';
 import 'package:sse_market_x/core/models/chat_message_model.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
@@ -12,13 +13,11 @@ import 'package:sse_market_x/shared/components/media/cached_image.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 class ChatDetailPage extends StatefulWidget {
-  final ApiService apiService;
   final UserModel targetUser;
   final bool isEmbedded;
 
   const ChatDetailPage({
     super.key,
-    required this.apiService,
     required this.targetUser,
     this.isEmbedded = false,
   });
@@ -28,6 +27,8 @@ class ChatDetailPage extends StatefulWidget {
 }
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
+  final UserService _userService = UserService();
+  final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -53,7 +54,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> _loadCurrentUser() async {
     try {
-      final user = await widget.apiService.getUserInfo();
+      final user = await _userService.getUserInfo();
       if (mounted) {
         setState(() {
           _currentUser = user;
@@ -142,7 +143,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     final currentUser = StorageService().user;
     if (currentUser != null) {
-      final messages = await widget.apiService.getChatHistory(
+      final messages = await _chatService.getChatHistory(
         currentUser.userId,
         widget.targetUser.userId,
       );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/api/comment_service.dart';
+import 'package:sse_market_x/core/api/post_service.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
@@ -10,13 +11,11 @@ import 'package:sse_market_x/core/models/post_model.dart';
 /// 打分帖子详情页 - 复用PostDetailPage的结构，添加评分功能
 class ScorePostDetailPage extends StatefulWidget {
   final int postId;
-  final ApiService apiService;
   final PostModel? initialPost;
 
   const ScorePostDetailPage({
     super.key,
     required this.postId,
-    required this.apiService,
     this.initialPost,
   });
 
@@ -25,6 +24,8 @@ class ScorePostDetailPage extends StatefulWidget {
 }
 
 class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
+  final PostService _postService = PostService();
+  final CommentService _commentService = CommentService();
   // 评分相关状态
   List<int> _stars = [0, 0, 0, 0, 0];
   double _averageRating = 0.0;
@@ -46,18 +47,14 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
   }
 
   Future<void> _loadRatingData() async {
-    final ratingResults = await Future.wait([
-      widget.apiService.getStarsDistribution(widget.postId),
-      widget.apiService.getUserPostRating(widget.postId),
-      widget.apiService.getAverageRating(widget.postId),
-    ]);
+    final detail = await _postService.getRatingPostDetail(widget.postId);
 
-    if (!mounted) return;
+    if (!mounted || detail == null) return;
 
     setState(() {
-      _stars = ratingResults[0] as List<int>;
-      _userRating = ratingResults[1] as int;
-      _averageRating = ratingResults[2] as double;
+      _stars = detail.stars;
+      _averageRating = detail.averageRating;
+      _userRating = detail.userStar;
     });
   }
 
@@ -68,32 +65,31 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
     });
 
     try {
-      final userPhone = StorageService().user?.phone;
-      if (userPhone == null || userPhone.isEmpty) {
-          SnackBarHelper.show(context, '请先登录');
-          setState(() {
-            _userRating = oldRating;
-          });
-          return;
+      // 评分接口通过 Bearer token 识别用户，无需手机号
+      if (StorageService().user == null) {
+        SnackBarHelper.show(context, '请先登录');
+        setState(() {
+          _userRating = oldRating;
+        });
+        return;
       }
 
-      final success = await widget.apiService.submitRating(
-        userPhone,
+      final success = await _postService.submitRating(
         widget.postId,
         rating,
       );
 
       if (success) {
-        // 重新获取评分分布
-        final results = await Future.wait([
-          widget.apiService.getStarsDistribution(widget.postId),
-          widget.apiService.getAverageRating(widget.postId),
-        ]);
-        
+        // 重新获取评分详情（分布、平均分、用户评分）
+        final detail = await _postService.getRatingPostDetail(widget.postId);
+
         if (mounted) {
           setState(() {
-            _stars = results[0] as List<int>;
-            _averageRating = results[1] as double;
+            if (detail != null) {
+              _stars = detail.stars;
+              _averageRating = detail.averageRating;
+              _userRating = detail.userStar;
+            }
           });
         }
         SnackBarHelper.show(context, '评分成功');
@@ -120,7 +116,6 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
   Widget build(BuildContext context) {
     return PostDetailPage(
       postId: widget.postId,
-      apiService: widget.apiService,
       postType: 'rating',
       topContent: RatingDistribution(
         stars: _stars,
@@ -131,15 +126,14 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
         onRatingClick: _handleRatingClick,
       ),
       onSendComment: (content) async {
-        final userPhone = StorageService().user?.phone;
-        if (userPhone == null || userPhone.isEmpty) {
+        // 评论接口通过 Bearer token 识别用户，无需手机号
+        if (StorageService().user == null) {
           SnackBarHelper.show(context, '请先登录');
           return false;
         }
-        return await widget.apiService.sendRatingComment(
+        return await _commentService.sendRatingComment(
           content,
           widget.postId,
-          userPhone,
           _userRating,
         );
       },
