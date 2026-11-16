@@ -41,13 +41,13 @@ class MediaCacheService {
   /// 初始化缓存服务
   Future<void> init() async {
     if (_initialized) return;
-    
+
     // Web 端不支持文件缓存
     if (kIsWeb) {
       _initialized = true;
       return;
     }
-    
+
     try {
       final appDir = await getApplicationDocumentsDirectory();
       _cacheDir = Directory('${appDir.path}/media_cache');
@@ -68,8 +68,8 @@ class MediaCacheService {
       if (_metadataFile != null && await _metadataFile!.exists()) {
         final content = await _metadataFile!.readAsString();
         final Map<String, dynamic> json = jsonDecode(content);
-        _metadata = json.map((key, value) => 
-            MapEntry(key, CacheMetadata.fromJson(value)));
+        _metadata = json
+            .map((key, value) => MapEntry(key, CacheMetadata.fromJson(value)));
       }
     } catch (e) {
       debugPrint('MediaCache: Load metadata error: $e');
@@ -81,14 +81,14 @@ class MediaCacheService {
   Future<void> _saveMetadata() async {
     try {
       if (_metadataFile != null) {
-        final json = _metadata.map((key, value) => MapEntry(key, value.toJson()));
+        final json =
+            _metadata.map((key, value) => MapEntry(key, value.toJson()));
         await _metadataFile!.writeAsString(jsonEncode(json));
       }
     } catch (e) {
       debugPrint('MediaCache: Save metadata error: $e');
     }
   }
-
 
   /// 根据 URL 生成缓存文件名
   String _getCacheFileName(String url) {
@@ -138,7 +138,8 @@ class MediaCacheService {
 
   /// 获取或下载媒体文件
   /// [category] 指定缓存来源分类
-  Future<File?> getOrDownload(String url, {CacheCategory category = CacheCategory.other}) async {
+  Future<File?> getOrDownload(String url,
+      {CacheCategory category = CacheCategory.other}) async {
     if (!_initialized) await init();
     if (_cacheDir == null) return null;
 
@@ -238,7 +239,6 @@ class MediaCacheService {
     return count;
   }
 
-
   /// 获取所有缓存文件信息
   Future<List<CacheFileInfo>> getCacheFiles() async {
     if (!_initialized) await init();
@@ -329,10 +329,10 @@ class CacheMetadata {
   }
 
   Map<String, dynamic> toJson() => {
-    'url': url,
-    'category': category.prefix,
-    'cachedAt': cachedAt.toIso8601String(),
-  };
+        'url': url,
+        'category': category.prefix,
+        'cachedAt': cachedAt.toIso8601String(),
+      };
 }
 
 /// 缓存文件信息
@@ -367,8 +367,6 @@ class CacheFileInfo {
   /// 判断是否为视频
   bool get isVideo {
     final ext = fileName.toLowerCase();
-    return ext.endsWith('.mp4') ||
-        ext.endsWith('.mov') ||
-        ext.endsWith('.avi');
+    return ext.endsWith('.mp4') || ext.endsWith('.mov') || ext.endsWith('.avi');
   }
 }

@@ -22,7 +22,7 @@ class LayoutConfig extends InheritedWidget {
   @override
   bool updateShouldNotify(LayoutConfig oldWidget) {
     return isDesktop != oldWidget.isDesktop ||
-           isThreeColumn != oldWidget.isThreeColumn ||
-           onPostTap != oldWidget.onPostTap;
+        isThreeColumn != oldWidget.isThreeColumn ||
+        onPostTap != oldWidget.onPostTap;
   }
 }

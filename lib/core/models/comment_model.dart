@@ -96,7 +96,8 @@ class CommentModel {
     }
 
     return CommentModel(
-      id: _readInt(['PcommentID', 'pcommentID', 'id']),
+      id: _readInt(
+          ['PcommentID', 'pcommentID', 'id', 'commentID', 'CommentID']),
       authorId: _readInt(['AuthorID', 'authorID']),
       authorName: _readString(['Author', 'author', 'AuthorName', 'authorName']),
       authorPhone: _readString(['AuthorTelephone', 'authorTelephone']),
@@ -108,9 +109,10 @@ class CommentModel {
       likeCount: _readInt(['LikeNum', 'likeNum']),
       isLiked: _readBool(['IsLiked', 'isLiked']),
       subComments: _readSubComments(),
-      postRating: _readInt(['AuthorRating', 'authorRating', 'Rating', 'rating']) > 0 
-          ? _readInt(['AuthorRating', 'authorRating', 'Rating', 'rating']) 
-          : null,
+      postRating:
+          _readInt(['AuthorRating', 'authorRating', 'Rating', 'rating']) > 0
+              ? _readInt(['AuthorRating', 'authorRating', 'Rating', 'rating'])
+              : null,
     );
   }
 }

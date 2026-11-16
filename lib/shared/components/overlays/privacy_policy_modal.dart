@@ -6,7 +6,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 class PrivacyPolicyModal extends StatefulWidget {
   final VoidCallback? onAccept;
-  final VoidCallback? onReject; // In Flutter modal, usually we just close it or pop.
+  final VoidCallback?
+      onReject; // In Flutter modal, usually we just close it or pop.
 
   const PrivacyPolicyModal({
     super.key,
@@ -192,7 +193,8 @@ class _PrivacyPolicyModalState extends State<PrivacyPolicyModal> {
                 if (_isLoading && !_hasError && _isWebviewSupported)
                   const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
               ],

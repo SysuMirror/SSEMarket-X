@@ -56,13 +56,14 @@ class ImageViewer extends StatefulWidget {
   State<ImageViewer> createState() => _ImageViewerState();
 }
 
-class _ImageViewerState extends State<ImageViewer> with TickerProviderStateMixin {
+class _ImageViewerState extends State<ImageViewer>
+    with TickerProviderStateMixin {
   late PageController _pageController;
   late int _currentIndex;
-  
+
   // 每个页面的状态
   final Map<int, _ImagePageState> _pageStates = {};
-  
+
   // 淡入淡出动画
   double _opacity = 1.0;
   bool _isTransitioning = false;
@@ -91,20 +92,20 @@ class _ImageViewerState extends State<ImageViewer> with TickerProviderStateMixin
   void _jumpToPage(int index) async {
     if (_isTransitioning || index == _currentIndex) return;
     _isTransitioning = true;
-    
+
     // 淡出
     setState(() => _opacity = 0.0);
     await Future.delayed(const Duration(milliseconds: 150));
-    
+
     if (!mounted) return;
-    
+
     // 跳转
     _pageController.jumpToPage(index);
-    
+
     // 淡入
     setState(() => _opacity = 1.0);
     await Future.delayed(const Duration(milliseconds: 150));
-    
+
     _isTransitioning = false;
   }
 
@@ -236,7 +237,8 @@ class _ImageViewerState extends State<ImageViewer> with TickerProviderStateMixin
                   return GestureDetector(
                     onTap: () => _jumpToPage(index),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 3, vertical: 4),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeOutCubic,
@@ -267,9 +269,7 @@ class _ImageViewerState extends State<ImageViewer> with TickerProviderStateMixin
           ],
           // 底部提示
           Text(
-            imageCount > 1
-                ? '左右滑动切换 · 双击放大 · 点击关闭'
-                : '双击放大 · 捏合缩放 · 点击关闭',
+            imageCount > 1 ? '左右滑动切换 · 双击放大 · 点击关闭' : '双击放大 · 捏合缩放 · 点击关闭',
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
@@ -315,12 +315,13 @@ class _ImagePage extends StatefulWidget {
   State<_ImagePage> createState() => _ImagePageStateWidget();
 }
 
-class _ImagePageStateWidget extends State<_ImagePage> with SingleTickerProviderStateMixin {
+class _ImagePageStateWidget extends State<_ImagePage>
+    with SingleTickerProviderStateMixin {
   final MediaCacheService _cacheService = MediaCacheService();
   late TransformationController _transformController;
   late AnimationController _animController;
   late _ImagePageState _state;
-  
+
   File? _file;
   bool _isLoading = true;
   Size? _imageSize;
@@ -383,14 +384,14 @@ class _ImagePageStateWidget extends State<_ImagePage> with SingleTickerProviderS
     final screenSize = MediaQuery.of(context).size;
     final widthRatio = _imageSize!.width / screenSize.width;
     final heightRatio = _imageSize!.height / screenSize.height;
-    return (widthRatio > heightRatio ? widthRatio : heightRatio).clamp(4.0, 20.0);
+    return (widthRatio > heightRatio ? widthRatio : heightRatio)
+        .clamp(4.0, 20.0);
   }
 
   void _onDoubleTapDown(TapDownDetails details) {
     final position = details.localPosition;
-    final endMatrix = _currentScale > 1.0
-        ? Matrix4.identity()
-        : _matrixZoomTo(position, 2.5);
+    final endMatrix =
+        _currentScale > 1.0 ? Matrix4.identity() : _matrixZoomTo(position, 2.5);
 
     _animateToMatrix(endMatrix);
   }
@@ -456,7 +457,8 @@ class _ImagePageStateWidget extends State<_ImagePage> with SingleTickerProviderS
                         fit: BoxFit.contain,
                         filterQuality: FilterQuality.high,
                       )
-                    : const Icon(Icons.broken_image, color: Colors.white, size: 48),
+                    : const Icon(Icons.broken_image,
+                        color: Colors.white, size: 48),
           ),
         ),
       ),

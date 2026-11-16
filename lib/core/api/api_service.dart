@@ -13,6 +13,11 @@ import 'package:sse_market_x/core/models/comment_model.dart';
 import 'package:sse_market_x/core/models/notice_model.dart';
 import 'package:sse_market_x/core/models/product_model.dart';
 import 'package:sse_market_x/core/models/chat_message_model.dart';
+import 'package:sse_market_x/core/models/mini_program_app_model.dart';
+import 'package:sse_market_x/core/models/presence_model.dart';
+import 'package:sse_market_x/core/models/coin_model.dart';
+import 'package:sse_market_x/core/models/music_model.dart';
+import 'package:sse_market_x/core/models/staff_alias_model.dart';
 
 /// 帖子列表请求参数
 class GetPostsParams {
@@ -56,6 +61,9 @@ class LoginResult {
 class ApiService {
   static const String _baseUrl = 'https://ssemarket.cn/api';
 
+  /// web 站点根地址（工作台小程序容器使用）。
+  static const String webBaseUrl = 'https://ssemarket.cn';
+
   String get token => StorageService().token;
 
   void setToken(String token) {
@@ -83,7 +91,8 @@ class ApiService {
       return null;
     }
 
-    final Map<String, dynamic> json = jsonDecode(response.body) as Map<String, dynamic>;
+    final Map<String, dynamic> json =
+        jsonDecode(response.body) as Map<String, dynamic>;
     final data = json['data'];
     if (data is Map<String, dynamic> && data['token'] is String) {
       final token = data['token'] as String;
@@ -100,7 +109,8 @@ class ApiService {
     final keyBytes = _zeroPaddedKey(key, 16);
 
     final sha = dart_crypto.sha256.convert(utf8.encode(key));
-    final ivHex = sha.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final ivHex =
+        sha.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     final ivUtf8 = utf8.encode(ivHex);
     final ivBytes = Uint8List.fromList(ivUtf8.sublist(0, 16));
 
@@ -114,6 +124,12 @@ class ApiService {
     final result = encrypted.base64;
 
     return result;
+  }
+
+  static int _coinInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? 0;
   }
 
   Uint8List _zeroPaddedKey(String key, int length) {
@@ -244,10 +260,22 @@ class ApiService {
     if (json is List) {
       return json.map<PostModel>((e) => PostModel.fromDynamic(e)).toList();
     }
-    // 某些情况下后端可能返回 { data: [...] }
-    if (json is Map<String, dynamic> && json['data'] is List) {
-      final list = json['data'] as List<dynamic>;
-      return list.map<PostModel>((e) => PostModel.fromDynamic(e)).toList();
+    if (json is Map<String, dynamic>) {
+      // 新版后端：{pinned: [...], posts: [...], total: N}
+      final dynamic rawPosts =
+          json['posts'] ?? (json['data'] is List ? json['data'] : null);
+      if (rawPosts is List) {
+        // 只返回正常分页帖；pinned 单独处理，避免混入后 offset 跳页。
+        return rawPosts
+            .whereType<Map>()
+            .map((e) => PostModel.fromDynamic(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      // 旧版兜底：{data: [...]}
+      if (json['data'] is List) {
+        final list = json['data'] as List<dynamic>;
+        return list.map<PostModel>((e) => PostModel.fromDynamic(e)).toList();
+      }
     }
     return <PostModel>[];
   }
@@ -317,7 +345,8 @@ class ApiService {
   }
 
   /// 获取帖子评论列表
-  Future<List<CommentModel>> getComments(int postId, String userPhone, {String postType = 'post'}) async {
+  Future<List<CommentModel>> getComments(int postId, String userPhone,
+      {String postType = 'post'}) async {
     if (token.isEmpty) return [];
 
     final uri = Uri.parse('$_baseUrl/auth/showPcomments');
@@ -343,11 +372,15 @@ class ApiService {
 
       final dynamic json = jsonDecode(response.body);
       if (json is List) {
-        return json.map<CommentModel>((e) => CommentModel.fromDynamic(e)).toList();
+        return json
+            .map<CommentModel>((e) => CommentModel.fromDynamic(e))
+            .toList();
       }
       if (json is Map<String, dynamic> && json['data'] is List) {
         final list = json['data'] as List<dynamic>;
-        return list.map<CommentModel>((e) => CommentModel.fromDynamic(e)).toList();
+        return list
+            .map<CommentModel>((e) => CommentModel.fromDynamic(e))
+            .toList();
       }
       return [];
     } catch (e) {
@@ -387,7 +420,8 @@ class ApiService {
   }
 
   /// 发送评论（带评分）
-  Future<bool> sendRatingComment(String content, int postId, String userPhone, int rating) async {
+  Future<bool> sendRatingComment(
+      String content, int postId, String userPhone, int rating) async {
     if (token.isEmpty || userPhone.isEmpty) return false;
 
     final uri = Uri.parse('$_baseUrl/auth/postRcomment');
@@ -584,11 +618,11 @@ class ApiService {
 
     // Use new API URL from newSSE
     final uri = Uri.parse('https://ssemarket.cn/api/auth/uploadPhotos');
-    
+
     try {
       final request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
-      
+
       MediaType? mediaType;
       final lowerName = fileName.toLowerCase();
       if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) {
@@ -600,7 +634,7 @@ class ApiService {
       } else if (lowerName.endsWith('.webp')) {
         mediaType = MediaType('image', 'webp');
       }
-      
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -911,14 +945,14 @@ class ApiService {
 
           // Also try capitalized just in case
           if (s1 == 0 && s2 == 0 && s3 == 0 && s4 == 0 && s5 == 0) {
-             final S1 = getCount('Star1');
-             final S2 = getCount('Star2');
-             final S3 = getCount('Star3');
-             final S4 = getCount('Star4');
-             final S5 = getCount('Star5');
-             if (S1 != 0 || S2 != 0 || S3 != 0 || S4 != 0 || S5 != 0) {
-               return [S1, S2, S3, S4, S5];
-             }
+            final S1 = getCount('Star1');
+            final S2 = getCount('Star2');
+            final S3 = getCount('Star3');
+            final S4 = getCount('Star4');
+            final S5 = getCount('Star5');
+            if (S1 != 0 || S2 != 0 || S3 != 0 || S4 != 0 || S5 != 0) {
+              return [S1, S2, S3, S4, S5];
+            }
           }
 
           return [s1, s2, s3, s4, s5];
@@ -959,7 +993,10 @@ class ApiService {
         }
 
         if (data is Map) {
-          final avg = data['averageRating'] ?? data['AverageRating'] ?? data['rating'] ?? data['Rating'];
+          final avg = data['averageRating'] ??
+              data['AverageRating'] ??
+              data['rating'] ??
+              data['Rating'];
           if (avg != null) {
             if (avg is double) return avg;
             if (avg is num) return avg.toDouble();
@@ -971,6 +1008,264 @@ class ApiService {
       // ignore: avoid_print
       print('获取平均评分失败: $e');
       return 0.0;
+    }
+  }
+
+  // ==================== 打分（新版 /auth/rating/*） ====================
+
+  /// 打分帖子列表。
+  Future<List<PostModel>> getRatingPosts({
+    int categoryID = 0,
+    String searchinfo = '',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (token.isEmpty) return [];
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/post/list');
+    final body = jsonEncode(<String, dynamic>{
+      'categoryID': categoryID,
+      'searchinfo': searchinfo,
+      'limit': limit,
+      'offset': offset,
+    });
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: body,
+      );
+      if (response.statusCode != 200) return [];
+      final dynamic data = jsonDecode(response.body);
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => PostModel.fromDynamic(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('获取打分帖子失败: $e');
+      return [];
+    }
+  }
+
+  /// 打分分类列表。
+  Future<List<Map<String, dynamic>>> getRatingCategories() async {
+    if (token.isEmpty) return [];
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/category/list');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{}),
+      );
+      if (response.statusCode != 200) return [];
+      final dynamic data = jsonDecode(response.body);
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('获取打分类别失败: $e');
+      return [];
+    }
+  }
+
+  /// 打分帖子详情（含 userStar）。
+  Future<PostModel> getRatingPostDetail(int ratingPostID) async {
+    if (token.isEmpty) return PostModel.empty();
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/post/detail');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'ratingPostID': ratingPostID}),
+      );
+      if (response.statusCode != 200) return PostModel.empty();
+      final dynamic data = jsonDecode(response.body);
+      if (data is Map) {
+        return PostModel.fromDynamic(Map<String, dynamic>.from(data));
+      }
+      return PostModel.empty();
+    } catch (e) {
+      print('获取打分帖子详情失败: $e');
+      return PostModel.empty();
+    }
+  }
+
+  /// 打分帖子评论列表。
+  Future<List<CommentModel>> getRatingComments(int ratingPostID) async {
+    if (token.isEmpty) return [];
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/comment/list');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'ratingPostID': ratingPostID}),
+      );
+      if (response.statusCode != 200) return [];
+      final dynamic data = jsonDecode(response.body);
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => CommentModel.fromDynamic(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('获取打分评论失败: $e');
+      return [];
+    }
+  }
+
+  /// 提交星级评分（1-5）。
+  Future<bool> submitRatingStar(int ratingPostID, int starNum) async {
+    if (token.isEmpty) return false;
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/star/submit');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'ratingPostID': ratingPostID,
+          'starNum': starNum,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('提交评分失败: $e');
+      return false;
+    }
+  }
+
+  /// 发表打分评论（带星级）。
+  Future<bool> createRatingComment(
+    int ratingPostID,
+    String content,
+    int starNum,
+  ) async {
+    if (token.isEmpty) return false;
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/comment/create');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'ratingPostID': ratingPostID,
+          'content': content,
+          'starNum': starNum,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('发表打分评论失败: $e');
+      return false;
+    }
+  }
+
+  /// 点赞打分帖子。
+  Future<bool> likeRatingPost(int ratingPostID) async {
+    if (token.isEmpty) return false;
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/post/like');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'ratingPostID': ratingPostID}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('点赞打分帖子失败: $e');
+      return false;
+    }
+  }
+
+  /// 点赞打分评论。
+  Future<bool> likeRatingComment(int commentID) async {
+    if (token.isEmpty) return false;
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/comment/like');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'commentID': commentID}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('点赞打分评论失败: $e');
+      return false;
+    }
+  }
+
+  /// 创建打分帖子。
+  Future<int?> createRatingPost({
+    required int categoryID,
+    required String title,
+    required String content,
+    String photos = '',
+  }) async {
+    if (token.isEmpty) return null;
+
+    final uri = Uri.parse('$_baseUrl/auth/rating/post/create');
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'categoryID': categoryID,
+          'title': title,
+          'content': content,
+          'photos': photos,
+        }),
+      );
+      if (response.statusCode != 200) return null;
+      final dynamic data = jsonDecode(response.body);
+      if (data is Map && data['ratingPostID'] != null) {
+        return int.tryParse(data['ratingPostID'].toString());
+      }
+      return null;
+    } catch (e) {
+      print('创建打分帖子失败: $e');
+      return null;
     }
   }
 
@@ -1044,8 +1339,8 @@ class ApiService {
         // 某些接口可能直接返回 Map，如果不是 List 也不是带 data 的 Map，可能就是空列表或者错误格式
         // 这里可以加一个 fallback，比如看看是否有 code 字段等
         if (data is Map) {
-           // 尝试解析为单条数据（虽然不太可能）或者如果确实是空数据
-           return [];
+          // 尝试解析为单条数据（虽然不太可能）或者如果确实是空数据
+          return [];
         }
       }
       return [];
@@ -1151,13 +1446,14 @@ class ApiService {
   /// 注册
   Future<String> register(Map<String, dynamic> data) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
-    
+
     // 加密密码
     if (data['password'] != null) {
       data['password'] = _encryptPassword(data['password'], '16bit secret key');
     }
     if (data['password2'] != null) {
-      data['password2'] = _encryptPassword(data['password2'], '16bit secret key');
+      data['password2'] =
+          _encryptPassword(data['password2'], '16bit secret key');
     }
 
     final body = jsonEncode(data);
@@ -1185,9 +1481,10 @@ class ApiService {
   }
 
   /// 重置密码
-  Future<String> resetPassword(String email, String password, String password2, String valiCode) async {
+  Future<String> resetPassword(
+      String email, String password, String password2, String valiCode) async {
     final uri = Uri.parse('$_baseUrl/auth/modifyPassword');
-    
+
     final encryptedPassword = _encryptPassword(password, '16bit secret key');
     final encryptedPassword2 = _encryptPassword(password2, '16bit secret key');
 
@@ -1254,7 +1551,8 @@ class ApiService {
     if (token.isEmpty) return [];
 
     try {
-      final uri = Uri.parse('$_baseUrl/auth/getNotice').replace(queryParameters: {
+      final uri =
+          Uri.parse('$_baseUrl/auth/getNotice').replace(queryParameters: {
         'requireID': requireId.toString(),
         'pageSize': pageSize.toString(),
         'read': read.toString(),
@@ -1306,7 +1604,8 @@ class ApiService {
   }
 
   /// 获取聊天记录
-  Future<List<ChatMessageModel>> getChatHistory(int senderUserId, int targetUserId) async {
+  Future<List<ChatMessageModel>> getChatHistory(
+      int senderUserId, int targetUserId) async {
     if (token.isEmpty) return [];
 
     final uri = Uri.parse('$_baseUrl/auth/getChatHistory');
@@ -1329,7 +1628,7 @@ class ApiService {
         if (json['code'] == 200 && json['data'] != null) {
           final data = json['data'];
           if (data['chatHistoryList'] is List) {
-             return (data['chatHistoryList'] as List)
+            return (data['chatHistoryList'] as List)
                 .map((e) => ChatMessageModel.fromJson(e))
                 .toList();
           }
@@ -1457,6 +1756,326 @@ class ApiService {
       return [];
     } catch (e) {
       print('获取教师列表失败: $e');
+      return [];
+    }
+  }
+
+  // ==================== 音乐 ====================
+
+  Future<List<MusicModel>> getMusicList({
+    List<int> ids = const <int>[],
+    String search = '',
+    int limit = 20,
+    int offset = 0,
+    bool mine = false,
+  }) async {
+    if (token.isEmpty) return const <MusicModel>[];
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/getMusicList'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'ids': ids,
+          'search': search,
+          'limit': limit,
+          'offset': offset,
+          'mine': mine,
+        }),
+      );
+      if (response.statusCode != 200) return const <MusicModel>[];
+      final dynamic json = jsonDecode(response.body);
+      final data = json is Map ? json['data'] : null;
+      final list = data is Map ? data['list'] : null;
+      if (list is! List) return const <MusicModel>[];
+      return list.map(MusicModel.fromDynamic).toList(growable: false);
+    } catch (e) {
+      print('获取音乐列表失败: $e');
+      return const <MusicModel>[];
+    }
+  }
+
+  /// 职位账号列表（web 编辑器 @ 开发人员用；后端未配置时返回空列表）。
+  Future<List<StaffAliasModel>> getStaffAliases() async {
+    if (token.isEmpty) return const <StaffAliasModel>[];
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/auth/staff/alias/list'),
+        headers: <String, String>{
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode != 200) return const <StaffAliasModel>[];
+      final dynamic json = jsonDecode(response.body);
+      final data = json is Map ? json['data'] : null;
+      final list = data is Map ? data['aliases'] : null;
+      if (list is! List) return const <StaffAliasModel>[];
+      return list
+          .map(StaffAliasModel.fromDynamic)
+          .where((a) => a.alias.isNotEmpty)
+          .toList(growable: false);
+    } catch (e) {
+      print('获取职位账号失败: $e');
+      return const <StaffAliasModel>[];
+    }
+  }
+
+  Future<void> reportMusicPlayed(int musicID) async {
+    if (token.isEmpty) return;
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/auth/musicPlayed'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'musicID': musicID}),
+      );
+    } catch (_) {}
+  }
+
+// ==================== 站内币 ====================
+
+  Future<CoinSummary?> getCoinSummary() async {
+    if (token.isEmpty) return null;
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/auth/coin/summary'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode != 200) return null;
+      final dynamic json = jsonDecode(response.body);
+      if (json is Map && json['code'] == 200 && json['data'] != null) {
+        return CoinSummary.fromDynamic(json['data']);
+      }
+      return null;
+    } catch (e) {
+      print('获取币总览失败: $e');
+      return null;
+    }
+  }
+
+  Future<({List<CoinLedgerItem> items, int total})> getCoinLedger({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (token.isEmpty) return (items: <CoinLedgerItem>[], total: 0);
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/coin/ledger'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{'limit': limit, 'offset': offset}),
+      );
+      if (response.statusCode != 200) {
+        return (items: <CoinLedgerItem>[], total: 0);
+      }
+      final dynamic json = jsonDecode(response.body);
+      final data = json is Map ? json['data'] : null;
+      final list = data is Map ? data['items'] : null;
+      return (
+        items: list is List
+            ? list.map(CoinLedgerItem.fromDynamic).toList(growable: false)
+            : <CoinLedgerItem>[],
+        total: data is Map ? _coinInt(data['total']) : 0,
+      );
+    } catch (e) {
+      print('获取币流水失败: $e');
+      return (items: <CoinLedgerItem>[], total: 0);
+    }
+  }
+
+  /// 投币（targetType: post / novel）。
+  Future<CoinActionOutcome> throwCoin({
+    required String targetType,
+    required int targetID,
+    required int coins,
+  }) async {
+    return _coinAction('/auth/coin/throw', <String, dynamic>{
+      'targetType': targetType,
+      'targetID': targetID,
+      'coins': coins,
+    });
+  }
+
+  /// 取消我在该内容上的全部投币。
+  Future<CoinActionOutcome> cancelCoin({
+    required String targetType,
+    required int targetID,
+  }) async {
+    return _coinAction('/auth/coin/cancel', <String, dynamic>{
+      'targetType': targetType,
+      'targetID': targetID,
+    });
+  }
+
+  Future<CoinActionOutcome> _coinAction(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    if (token.isEmpty) {
+      return const CoinActionOutcome(ok: false, msg: '请先登录');
+    }
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl$path'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+      final dynamic json = jsonDecode(response.body);
+      if (response.statusCode == 200 && json is Map && json['code'] == 200) {
+        return CoinActionOutcome(
+          ok: true,
+          msg: json['msg']?.toString() ?? '操作成功',
+          result: json['data'] != null
+              ? CoinThrowResult.fromDynamic(json['data'])
+              : null,
+        );
+      }
+      return CoinActionOutcome(
+        ok: false,
+        msg: json is Map ? (json['msg']?.toString() ?? '操作失败') : '操作失败',
+      );
+    } catch (e) {
+      print('币操作失败: $e');
+      return const CoinActionOutcome(ok: false, msg: '网络异常，请稍后重试');
+    }
+  }
+
+  /// 每日进入 +1 币；后端按天幂等。
+  Future<int> reportDailyVisit() async {
+    if (token.isEmpty) return 0;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/coin/visit'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{}),
+      );
+      if (response.statusCode != 200) return 0;
+      final dynamic json = jsonDecode(response.body);
+      if (json is Map && json['code'] == 200 && json['data'] is Map) {
+        return _coinInt(json['data']['granted']);
+      }
+      return 0;
+    } catch (e) {
+      print('每日访问币上报失败: $e');
+      return 0;
+    }
+  }
+
+  /// 上报在线心跳（scene: home/post/novel/music/resume）。
+  Future<PresenceSnapshot?> sendPresenceHeartbeat({
+    required String scene,
+    int targetID = 0,
+  }) async {
+    if (token.isEmpty) return null;
+
+    final uri = Uri.parse('$_baseUrl/auth/presence/heartbeat');
+    final body = <String, dynamic>{'scene': scene};
+    if (scene != 'home' && targetID > 0) body['targetID'] = targetID;
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+      if (response.statusCode != 200) return null;
+      final dynamic json = jsonDecode(response.body);
+      if (json is Map && json['code'] == 200 && json['data'] != null) {
+        return PresenceSnapshot.fromDynamic(json['data']);
+      }
+      return null;
+    } catch (e) {
+      print('在线心跳失败: $e');
+      return null;
+    }
+  }
+
+  /// 只读在线人数（不写入活跃记录）。
+  Future<PresenceSnapshot?> fetchPresenceStats({
+    required String scene,
+    int targetID = 0,
+  }) async {
+    if (token.isEmpty) return null;
+
+    final uri = Uri.parse('$_baseUrl/auth/presence/stats').replace(
+      queryParameters: <String, String>{
+        'scene': scene,
+        if (scene != 'home' && targetID > 0) 'targetID': targetID.toString(),
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode != 200) return null;
+      final dynamic json = jsonDecode(response.body);
+      if (json is Map && json['code'] == 200 && json['data'] != null) {
+        return PresenceSnapshot.fromDynamic(json['data']);
+      }
+      return null;
+    } catch (e) {
+      print('获取在线人数失败: $e');
+      return null;
+    }
+  }
+
+  /// 获取动态小程序列表（后端沿用 `/auth/workbench/apps` 数据集）。
+  /// 接口本身不要求登录，带上 token 也无妨。
+  Future<List<MiniProgramAppItem>> getMiniProgramApps() async {
+    final uri = Uri.parse('$_baseUrl/auth/workbench/apps');
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) return [];
+
+      final dynamic decoded = jsonDecode(response.body);
+      // 后端直接返回数组；兼容 response.Response 包装成 {data: [...]} 的情况。
+      final List<dynamic> list;
+      if (decoded is List) {
+        list = decoded;
+      } else if (decoded is Map && decoded['data'] is List) {
+        list = decoded['data'] as List;
+      } else {
+        return [];
+      }
+
+      return list
+          .whereType<Map>()
+          .map((e) => MiniProgramAppItem.fromJson(Map<String, dynamic>.from(e)))
+          .where((app) => app.name.isNotEmpty && app.target.isNotEmpty)
+          .toList();
+    } catch (e) {
+      print('获取工作台应用失败: $e');
       return [];
     }
   }

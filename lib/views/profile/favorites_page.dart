@@ -191,7 +191,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
           return PostCard(
             post: post,
             onTap: () async {
-              final result = await Navigator.of(context).push<Map<String, dynamic>?>(
+              final result =
+                  await Navigator.of(context).push<Map<String, dynamic>?>(
                 MaterialPageRoute(
                   builder: (_) => PostDetailPage(
                     postId: post.id,
@@ -205,10 +206,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 if (result['deleted'] == true || result['isSaved'] == false) {
                   _loadFavorites(refresh: true);
                 } else {
-                   // 简单起见，有变动就刷新，因为可能点赞数变了
-                   // 但为了性能，如果没有取消收藏，可以局部更新点赞数（TODO）
-                   // 目前为了保证一致性，直接刷新
-                   _loadFavorites(refresh: true);
+                  // 简单起见，有变动就刷新，因为可能点赞数变了
+                  // 但为了性能，如果没有取消收藏，可以局部更新点赞数（TODO）
+                  // 目前为了保证一致性，直接刷新
+                  _loadFavorites(refresh: true);
                 }
               }
             },

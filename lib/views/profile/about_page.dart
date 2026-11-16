@@ -127,13 +127,21 @@ class _AboutPageState extends State<AboutPage> {
             title: '版本号',
             value: _version,
           ),
-          Divider(height: 1, color: context.dividerColor, indent: 16, endIndent: 16),
+          Divider(
+              height: 1,
+              color: context.dividerColor,
+              indent: 16,
+              endIndent: 16),
           _buildInfoItem(
             context,
             title: '联系方式',
             value: 'ssemarket@126.com',
           ),
-          Divider(height: 1, color: context.dividerColor, indent: 16, endIndent: 16),
+          Divider(
+              height: 1,
+              color: context.dividerColor,
+              indent: 16,
+              endIndent: 16),
           _buildInfoItem(
             context,
             title: '服务协议',
@@ -141,11 +149,16 @@ class _AboutPageState extends State<AboutPage> {
             showArrow: true,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage(type: 'terms')),
+                MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyPage(type: 'terms')),
               );
             },
           ),
-          Divider(height: 1, color: context.dividerColor, indent: 16, endIndent: 16),
+          Divider(
+              height: 1,
+              color: context.dividerColor,
+              indent: 16,
+              endIndent: 16),
           _buildInfoItem(
             context,
             title: '隐私政策',
@@ -153,7 +166,8 @@ class _AboutPageState extends State<AboutPage> {
             showArrow: true,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage(type: 'privacy')),
+                MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyPage(type: 'privacy')),
               );
             },
           ),
@@ -196,7 +210,8 @@ class _AboutPageState extends State<AboutPage> {
                 'assets/icons/ic_arrow_right.svg',
                 width: 16,
                 height: 16,
-                colorFilter: ColorFilter.mode(context.dividerColor, BlendMode.srcIn),
+                colorFilter:
+                    ColorFilter.mode(context.dividerColor, BlendMode.srcIn),
               ),
             ],
           ],

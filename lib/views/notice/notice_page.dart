@@ -85,7 +85,8 @@ class _NoticePageState extends State<NoticePage>
     NoticeService().clearUnreadCount();
 
     try {
-      await Future.wait(noticesToMark.map((n) => widget.apiService.readNotice(n.noticeId)));
+      await Future.wait(
+          noticesToMark.map((n) => widget.apiService.readNotice(n.noticeId)));
     } catch (e) {
       debugPrint('一键已读失败: $e');
     }
@@ -96,8 +97,15 @@ class _NoticePageState extends State<NoticePage>
 
     try {
       final noticeNum = await widget.apiService.getNoticeNum();
-      final unreadList = await widget.apiService.getNotices(requireId: 0, pageSize: noticeNum.unreadTotalNum > 0 ? noticeNum.unreadTotalNum : 20, read: 0);
-      final readList = await widget.apiService.getNotices(requireId: 0, pageSize: noticeNum.readTotalNum > 0 ? noticeNum.readTotalNum : 20, read: 1);
+      final unreadList = await widget.apiService.getNotices(
+          requireId: 0,
+          pageSize:
+              noticeNum.unreadTotalNum > 0 ? noticeNum.unreadTotalNum : 20,
+          read: 0);
+      final readList = await widget.apiService.getNotices(
+          requireId: 0,
+          pageSize: noticeNum.readTotalNum > 0 ? noticeNum.readTotalNum : 20,
+          read: 1);
 
       if (mounted) {
         setState(() {
@@ -115,10 +123,11 @@ class _NoticePageState extends State<NoticePage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用 super.build
-    
+
     // Calculate paddings
     final topPadding = MediaQuery.of(context).padding.top + kToolbarHeight + 36;
-    final bottomPadding = kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
+    final bottomPadding =
+        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: context.backgroundColor,
@@ -129,7 +138,7 @@ class _NoticePageState extends State<NoticePage>
           builder: (context, isBlurEnabled, _) {
             Widget content = Container(
               decoration: BoxDecoration(
-                color: isBlurEnabled 
+                color: isBlurEnabled
                     ? context.blurBackgroundColor.withOpacity(0.82)
                     : context.surfaceColor,
                 border: Border(
@@ -140,7 +149,7 @@ class _NoticePageState extends State<NoticePage>
                 ),
               ),
             );
-            
+
             if (isBlurEnabled) {
               return ClipRect(
                 child: BackdropFilter(
@@ -181,7 +190,8 @@ class _NoticePageState extends State<NoticePage>
         children: [
           // 私信列表
           ChatListPage(
-            contentPadding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, bottomPadding + 16),
+            contentPadding: EdgeInsets.fromLTRB(
+                16, topPadding + 16, 16, bottomPadding + 16),
             apiService: widget.apiService,
             onUserTap: (user) {
               if (widget.onChatTap != null) {
@@ -191,7 +201,7 @@ class _NoticePageState extends State<NoticePage>
                   MaterialPageRoute(
                     builder: (_) => ChatDetailPage(
                       apiService: widget.apiService,
-                      targetUser: user, 
+                      targetUser: user,
                       isEmbedded: false,
                     ),
                   ),
@@ -200,19 +210,27 @@ class _NoticePageState extends State<NoticePage>
             },
           ),
           // 未读通知
-          _isLoading 
+          _isLoading
               ? Padding(
-                  padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
+                  padding:
+                      EdgeInsets.only(top: topPadding, bottom: bottomPadding),
                   child: const LoadingIndicator.center(message: '加载中...'),
                 )
-              : _buildNoticeList(_unreadNotices, isUnread: true, topPadding: topPadding, bottomPadding: bottomPadding),
+              : _buildNoticeList(_unreadNotices,
+                  isUnread: true,
+                  topPadding: topPadding,
+                  bottomPadding: bottomPadding),
           // 已读通知
           _isLoading
               ? Padding(
-                  padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
+                  padding:
+                      EdgeInsets.only(top: topPadding, bottom: bottomPadding),
                   child: const LoadingIndicator.center(message: '加载中...'),
                 )
-              : _buildNoticeList(_readNotices, isUnread: false, topPadding: topPadding, bottomPadding: bottomPadding),
+              : _buildNoticeList(_readNotices,
+                  isUnread: false,
+                  topPadding: topPadding,
+                  bottomPadding: bottomPadding),
         ],
       ),
     );
@@ -238,7 +256,8 @@ class _NoticePageState extends State<NoticePage>
               child: GestureDetector(
                 onTap: _markAllAsRead,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: context.backgroundColor,
                     borderRadius: BorderRadius.circular(14),
@@ -278,8 +297,11 @@ class _NoticePageState extends State<NoticePage>
                   text,
                   style: TextStyle(
                     fontSize: 15,
-                    color: isSelected ? AppColors.primary : context.textSecondaryColor,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? AppColors.primary
+                        : context.textSecondaryColor,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ),
@@ -288,12 +310,14 @@ class _NoticePageState extends State<NoticePage>
                   right: -10,
                   top: -2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
                       color: AppColors.error,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 14),
                     child: Center(
                       child: Text(
                         badgeCount > 99 ? '99+' : '$badgeCount',
@@ -324,12 +348,16 @@ class _NoticePageState extends State<NoticePage>
     );
   }
 
-  Widget _buildNoticeList(List<Notice> notices, {required bool isUnread, required double topPadding, required double bottomPadding}) {
+  Widget _buildNoticeList(List<Notice> notices,
+      {required bool isUnread,
+      required double topPadding,
+      required double bottomPadding}) {
     if (notices.isEmpty) {
       return Padding(
         padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
         child: Center(
-          child: Text(isUnread ? '暂无未读通知' : '暂无已读通知', style: TextStyle(fontSize: 16, color: context.textTertiaryColor)),
+          child: Text(isUnread ? '暂无未读通知' : '暂无已读通知',
+              style: TextStyle(fontSize: 16, color: context.textTertiaryColor)),
         ),
       );
     }
@@ -339,7 +367,8 @@ class _NoticePageState extends State<NoticePage>
       onRefresh: () => _loadNotices(refresh: true),
       color: AppColors.primary,
       child: ListView.builder(
-        padding: EdgeInsets.fromLTRB(16, topPadding + 16, 16, bottomPadding + 16),
+        padding:
+            EdgeInsets.fromLTRB(16, topPadding + 16, 16, bottomPadding + 16),
         itemCount: notices.length,
         itemBuilder: (context, index) {
           final notice = notices[index];
@@ -387,13 +416,17 @@ class _NoticePageState extends State<NoticePage>
                         children: [
                           Text(
                             notice.senderName,
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimaryColor),
                           ),
                           Text(
                             notice.postId == 0
                                 ? ''
                                 : TimeUtils.formatNoticeTime(notice.time),
-                            style: TextStyle(fontSize: 12, color: context.textTertiaryColor),
+                            style: TextStyle(
+                                fontSize: 12, color: context.textTertiaryColor),
                           ),
                         ],
                       ),
@@ -402,7 +435,10 @@ class _NoticePageState extends State<NoticePage>
                         notice.content,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 14, color: context.textSecondaryColor, height: 1.3),
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: context.textSecondaryColor,
+                            height: 1.3),
                       ),
                       if (notice.postId == 0) ...[
                         const SizedBox(height: 4),
@@ -420,7 +456,8 @@ class _NoticePageState extends State<NoticePage>
                           child: Row(
                             children: [
                               _buildActionButton('标记已读', () async {
-                                final success = await widget.apiService.readNotice(notice.noticeId);
+                                final success = await widget.apiService
+                                    .readNotice(notice.noticeId);
                                 if (success) {
                                   // 更新 NoticeService 中的未读数
                                   NoticeService().decreaseUnreadCount();
@@ -431,7 +468,8 @@ class _NoticePageState extends State<NoticePage>
                               if (notice.postId > 0)
                                 _buildActionButton('查看原帖', () async {
                                   // 先标记已读
-                                  await widget.apiService.readNotice(notice.noticeId);
+                                  await widget.apiService
+                                      .readNotice(notice.noticeId);
                                   // 更新 NoticeService 中的未读数
                                   NoticeService().decreaseUnreadCount();
                                   if (!mounted) return;
@@ -440,7 +478,9 @@ class _NoticePageState extends State<NoticePage>
                                   // 跳转
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => PostDetailPage(postId: notice.postId, apiService: widget.apiService),
+                                      builder: (_) => PostDetailPage(
+                                          postId: notice.postId,
+                                          apiService: widget.apiService),
                                     ),
                                   );
                                 }),
@@ -455,7 +495,9 @@ class _NoticePageState extends State<NoticePage>
                               _buildActionButton('查看原帖', () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => PostDetailPage(postId: notice.postId, apiService: widget.apiService),
+                                    builder: (_) => PostDetailPage(
+                                        postId: notice.postId,
+                                        apiService: widget.apiService),
                                   ),
                                 );
                               }),
@@ -492,7 +534,8 @@ class _NoticePageState extends State<NoticePage>
           color: context.backgroundColor,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.primary)),
+        child: Text(text,
+            style: const TextStyle(fontSize: 12, color: AppColors.primary)),
       ),
     );
   }

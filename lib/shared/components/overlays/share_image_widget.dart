@@ -33,9 +33,12 @@ class ShareImageWidget extends StatelessWidget {
         .replaceAll(RegExp(r'!\[.*?\]\(.*?\)'), '') // 移除图片
         .replaceAll(RegExp(r'\[.*?\]\(.*?\)'), '') // 移除链接
         .replaceAll(RegExp(r'#{1,6}\s+'), '') // 移除标题标记
-        .replaceAllMapped(RegExp(r'\*\*.*?\*\*'), (match) => match.group(0)!.replaceAll('**', '')) // 移除粗体标记但保留文字
-        .replaceAllMapped(RegExp(r'\*.*?\*'), (match) => match.group(0)!.replaceAll('*', '')) // 移除斜体标记但保留文字
-        .replaceAllMapped(RegExp(r'`.*?`'), (match) => match.group(0)!.replaceAll('`', '')) // 移除代码标记但保留文字
+        .replaceAllMapped(RegExp(r'\*\*.*?\*\*'),
+            (match) => match.group(0)!.replaceAll('**', '')) // 移除粗体标记但保留文字
+        .replaceAllMapped(RegExp(r'\*.*?\*'),
+            (match) => match.group(0)!.replaceAll('*', '')) // 移除斜体标记但保留文字
+        .replaceAllMapped(RegExp(r'`.*?`'),
+            (match) => match.group(0)!.replaceAll('`', '')) // 移除代码标记但保留文字
         .replaceAll(RegExp(r'\n+'), ' ') // 将换行符替换为空格
         .trim();
 
@@ -112,9 +115,9 @@ class ShareImageWidget extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // 标题
           Text(
             postTitle.isNotEmpty ? postTitle : '无标题',
@@ -128,7 +131,7 @@ class ShareImageWidget extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           if (previewContent.isNotEmpty) ...[
             const SizedBox(height: 16),
             // 内容预览
@@ -143,14 +146,14 @@ class ShareImageWidget extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          
+
           const SizedBox(height: 32),
-          
+
           // 分割线
           Divider(color: Colors.black.withOpacity(0.06), height: 1),
-          
+
           const SizedBox(height: 24),
-          
+
           // 底部信息
           Row(
             children: [
@@ -207,7 +210,8 @@ class ShareImageWidget extends StatelessWidget {
               ),
               // POST ID 标签
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(100),
@@ -227,5 +231,4 @@ class ShareImageWidget extends StatelessWidget {
       ),
     );
   }
-
 }

@@ -96,7 +96,8 @@ class _LoginFormState extends State<LoginForm> {
             user,
             result.token,
             rememberMe: true,
-            refreshToken: result.refreshToken.isNotEmpty ? result.refreshToken : null,
+            refreshToken:
+                result.refreshToken.isNotEmpty ? result.refreshToken : null,
           );
           if (!mounted) return;
           SnackBarHelper.show(context, '登录成功');
@@ -248,8 +249,10 @@ class _LoginFormState extends State<LoginForm> {
   Widget _buildForm({bool isDesktop = false}) {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final canSubmit =
-        !_isLoading && email.isNotEmpty && password.isNotEmpty && _agreedToTerms;
+    final canSubmit = !_isLoading &&
+        email.isNotEmpty &&
+        password.isNotEmpty &&
+        _agreedToTerms;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -279,7 +282,7 @@ class _LoginFormState extends State<LoginForm> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-              disabledForegroundColor: Colors.white.withOpacity(0.6),
+          disabledForegroundColor: Colors.white.withOpacity(0.6),
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -417,7 +420,8 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                 )
               : null,
-          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 0, minHeight: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -470,7 +474,8 @@ class _LoginFormState extends State<LoginForm> {
               size: 20,
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 0, minHeight: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -491,14 +496,18 @@ class _LoginFormState extends State<LoginForm> {
             padding: const EdgeInsets.only(right: 4),
             child: IconButton(
               icon: Icon(
-                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: context.textTertiaryColor,
                 size: 20,
               ),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
-          suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          suffixIconConstraints:
+              const BoxConstraints(minWidth: 0, minHeight: 0),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sse_market_x/core/api/api_service.dart';
@@ -26,6 +27,13 @@ import 'package:sse_market_x/views/chat/chat_detail_page.dart';
 
 import 'package:sse_market_x/views/post/score_post_detail_page.dart';
 import 'package:sse_market_x/core/services/notice_service.dart';
+import 'package:sse_market_x/core/services/new_posts_service.dart';
+import 'package:sse_market_x/core/services/notification_service.dart';
+import 'package:sse_market_x/core/services/presence_service.dart';
+import 'package:sse_market_x/views/miniprogram/mini_program_drawer.dart';
+import 'package:sse_market_x/core/miniprogram/mini_program_runtime.dart';
+import 'package:sse_market_x/views/xiaoqiu/xiao_qiu_chat_page.dart';
+import 'dart:io';
 
 // Detail panel content types
 enum DetailContentType {
@@ -61,8 +69,9 @@ class _DetailNavigatorObserver extends NavigatorObserver {
   }
 }
 
-class _IndexPageState extends State<IndexPage> {
+class _IndexPageState extends State<IndexPage> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  bool _mpPanelOpen = false;
   int? _selectedPostId; // For desktop 3-column layout
   PostModel? _selectedPost; // Store selected post model for init data
   int?
@@ -93,6 +102,11 @@ class _IndexPageState extends State<IndexPage> {
   int _noticeUnreadCount = 0;
   StreamSubscription<int>? _unreadSubscription;
   StreamSubscription<int>? _noticeUnreadSubscription;
+
+  // 新帖提醒
+  StreamSubscription<String>? _notificationTapSubscription;
+  int _newPostsCount = 0;
+  int _lastNewPostsUpdatedAt = 0;
 
   // Keys for nested navigators to maintain state per tab
   final Map<int, GlobalKey<NavigatorState>> _navigatorKeys = {
@@ -125,12 +139,46 @@ class _IndexPageState extends State<IndexPage> {
     _initWebSocket();
     // 初始化未读消息监听
     _initUnreadListener();
+    // 初始化新帖轮询与通知
+    _initNewPosts();
+    // 全站在线心跳
+    if (StorageService().isLoggedIn) {
+      PresenceService().start(widget.apiService);
+      PresenceService().setTarget('home');
+      // 每日进入 +1 币（后端按天幂等，重复调用返回 granted=0）
+      unawaited(widget.apiService.reportDailyVisit());
+      // 小程序平台设备注册 + 新帖订阅只属于原生 App；
+      // Web 端没有系统推送 token，调用还会触发跨域，直接跳过。
+      if (!kIsWeb) {
+        unawaited(
+          MiniProgramRuntime()
+              .api
+              .registerDevice(
+                platform: Platform.operatingSystem,
+                pushProvider: 'local',
+              )
+              .catchError((_) {}),
+        );
+        unawaited(
+          MiniProgramRuntime()
+              .api
+              .updateSubscriptions(enabled: true)
+              .catchError((_) {}),
+        );
+      }
+    }
+    WidgetsBinding.instance.addObserver(this);
     // 刷新用户信息
     _refreshUserInfo();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    NewPostsService().state.removeListener(_handleNewPostsChanged);
+    NewPostsService().stop();
+    PresenceService().stop();
+    _notificationTapSubscription?.cancel();
     _layoutPrefService.sideWidthNotifier
         .removeListener(_handleSideWidthPreferenceChanged);
     _layoutPrefService.middleWidthNotifier
@@ -138,6 +186,120 @@ class _IndexPageState extends State<IndexPage> {
     _unreadSubscription?.cancel();
     _noticeUnreadSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 回到前台立即补一次检查，并恢复轮询。
+      NewPostsService().start(widget.apiService);
+      NewPostsService().checkNow();
+      PresenceService().start(widget.apiService);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      // 在线心跳只在真正前台时上报，避免后台挂着占在线人数。
+      PresenceService().stop();
+      // 注意：不要在这里停 NewPostsService。
+      // App 退到后台但进程仍存活时，Dart 定时器会继续运行，继续轮询并在
+      // 系统通知栏提示新帖；之前在这里 stop() 正是“后台收不到通知”的原因。
+      // 进程被系统杀掉后定时器才会消失，那种情况只能靠厂商推送（见 docs/push-integration.md）。
+    }
+  }
+
+  void _initNewPosts() {
+    final service = NewPostsService();
+    service.state.addListener(_handleNewPostsChanged);
+    _notificationTapSubscription =
+        NotificationService().onNotificationTap.listen(_handleNotificationPayload);
+
+    if (StorageService().isLoggedIn) {
+      service.start(widget.apiService);
+      // 首次进入请求一次系统通知权限（Android 13+ / HarmonyOS）。
+      // 放到首帧后，避免在 Activity 尚未就绪时弹权限框。
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final granted = await service.ensurePermissionAsked();
+        if (!mounted || granted || !service.isEnabled) return;
+        // 只在移动端提示；桌面/网页没有系统通知权限概念
+        if (kIsWeb ||
+            !(Platform.isAndroid ||
+                Platform.isIOS ||
+                Platform.operatingSystem == 'ohos')) {
+          return;
+        }
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: const Text('新帖通知未开启，可能收不到系统通知'),
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: '去开启',
+              onPressed: () => NotificationService().openSystemSettings(),
+            ),
+          ),
+        );
+      });
+      final pending = NotificationService().takePendingPayload();
+      if (pending != null && pending.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _handleNotificationPayload(pending);
+        });
+      }
+    }
+  }
+
+  void _handleNewPostsChanged() {
+    final newState = NewPostsService().state.value;
+    if (!mounted) return;
+    setState(() {
+      _newPostsCount = newState.count;
+    });
+
+    if (newState.updatedAt <= _lastNewPostsUpdatedAt || !newState.isVisible) {
+      return;
+    }
+    _lastNewPostsUpdatedAt = newState.updatedAt;
+
+    // App 内横幅：即使系统通知权限被拒，也能看到提醒。
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('有 ${newState.count} 条未查看的新帖子'),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: '去看看',
+          onPressed: _goHomeFromNewPosts,
+        ),
+      ),
+    );
+  }
+
+  /// 系统通知点击：`new_posts` 回首页；`new_posts:<id>` 还要打开对应帖子。
+  void _handleNotificationPayload(String payload) {
+    if (!payload.startsWith('new_posts')) return;
+    _goHomeFromNewPosts();
+    final id = int.tryParse(payload.split(':').last);
+    if (id == null || id <= 0 || !mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PostDetailPage(
+          postId: id,
+          apiService: widget.apiService,
+        ),
+      ),
+    );
+  }
+
+  void _goHomeFromNewPosts() {
+    NewPostsService().markSeen();
+    if (!mounted) return;
+    setState(() {
+      _currentIndex = 0;
+      _newPostsCount = 0;
+      _detailNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+      _detailContentType = DetailContentType.placeholder;
+    });
+    _homePageKey.currentState?.refresh();
   }
 
   void _handleSideWidthPreferenceChanged() {
@@ -228,6 +390,7 @@ class _IndexPageState extends State<IndexPage> {
           detailedUser = basicUser.copyWith(
             score: detailed.score,
             intro: detailed.intro,
+            customTitle: detailed.customTitle,
           );
         } catch (e) {
           debugPrint('获取详细用户信息失败: $e');
@@ -278,20 +441,22 @@ class _IndexPageState extends State<IndexPage> {
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      backgroundColor: context.surfaceColor,
+      backgroundColor: context.pageColor,
       extendBody: true,
       body: IndexedStack(
         // Remove SafeArea to allow content behind/under
         index: _currentIndex,
         children: [
           _buildBodyForTab(0, isDesktop: false, isThreeColumn: false), // 首页
-          _buildBodyForTab(2, isDesktop: false, isThreeColumn: false), // 打分
+          const SizedBox.shrink(), // 小秋：点击时直接打开主站对话页
           _buildBodyForTab(3, isDesktop: false, isThreeColumn: false), // 闲置
           _buildBodyForTab(4, isDesktop: false, isThreeColumn: false), // 消息
           _buildBodyForTab(6, isDesktop: false, isThreeColumn: false), // 我的
         ],
       ),
-      bottomNavigationBar: ValueListenableBuilder<bool>(
+      bottomNavigationBar: _mpPanelOpen
+          ? null
+          : ValueListenableBuilder<bool>(
         valueListenable: BlurEffectService().enabledNotifier,
         builder: (context, isBlurEnabled, child) {
           Widget navContent = Container(
@@ -317,40 +482,36 @@ class _IndexPageState extends State<IndexPage> {
                 BottomNavigationBarItem(
                   icon: Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/home_normal.svg',
-                      width: 24,
-                      height: 24,
+                    child: _buildNewPostsBadge(
+                      SvgPicture.asset(
+                        'assets/icons/home_normal.svg',
+                        width: 24,
+                        height: 24,
+                      ),
                     ),
                   ),
                   activeIcon: Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/home_selected.svg',
-                      width: 24,
-                      height: 24,
+                    child: _buildNewPostsBadge(
+                      SvgPicture.asset(
+                        'assets/icons/home_selected.svg',
+                        width: 24,
+                        height: 24,
+                      ),
                     ),
                   ),
                   label: '首页',
                 ),
                 BottomNavigationBarItem(
-                  icon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/todo_normal_new.svg',
-                      width: 24,
-                      height: 24,
-                    ),
+                  icon: const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Icon(Icons.auto_awesome_outlined, size: 24),
                   ),
-                  activeIcon: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: SvgPicture.asset(
-                      'assets/icons/todo_selected_new.svg',
-                      width: 24,
-                      height: 24,
-                    ),
+                  activeIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Icon(Icons.auto_awesome, size: 24),
                   ),
-                  label: '打分',
+                  label: '小秋',
                 ),
                 BottomNavigationBarItem(
                   icon: Padding(
@@ -403,14 +564,26 @@ class _IndexPageState extends State<IndexPage> {
                 ),
               ],
               onTap: (index) {
+                // 小秋是主站对话页，不属于底部 Tab 的内容栈，直接打开。
+                if (index == 1) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const XiaoQiuChatPage(),
+                    ),
+                  );
+                  return;
+                }
                 setState(() {
                   _currentIndex = index;
                 });
                 // 切换到首页时触发静默后台刷新
                 if (index == 0) {
                   _homePageKey.currentState?.silentRefresh();
+                  NewPostsService().markSeen();
+                  PresenceService().setTarget('home');
+                  setState(() => _newPostsCount = 0);
                 }
-                // 切换到消息页时刷新通知未读数
+                // 切换到消息页时刷新通知未读数（移动端：0 首页 / 1 小秋 / 2 闲置 / 3 消息 / 4 我的）
                 if (index == 3) {
                   _fetchNoticeUnreadCount();
                 }
@@ -444,7 +617,7 @@ class _IndexPageState extends State<IndexPage> {
               post: post)
           : null,
       child: Scaffold(
-        backgroundColor: context.surfaceColor,
+        backgroundColor: context.pageColor,
         body: LayoutBuilder(
           builder: (context, constraints) {
             final totalWidth = constraints.maxWidth;
@@ -517,6 +690,14 @@ class _IndexPageState extends State<IndexPage> {
                       apiService: widget.apiService,
                       selectedIndex: _currentIndex,
                       onItemTap: (index) {
+                        if (index == 2) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const XiaoQiuChatPage(),
+                            ),
+                          );
+                          return;
+                        }
                         setState(() {
                           _currentIndex = index;
                           _detailNavigatorKey.currentState
@@ -691,6 +872,14 @@ class _IndexPageState extends State<IndexPage> {
                     apiService: widget.apiService,
                     selectedIndex: _currentIndex,
                     onItemTap: (index) {
+                      if (index == 2) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const XiaoQiuChatPage(),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         _currentIndex = index;
                         _detailNavigatorKey.currentState
@@ -749,6 +938,13 @@ class _IndexPageState extends State<IndexPage> {
           apiService: widget.apiService,
           showHeaderAvatar: !isDesktop,
           showHeaderAddButton: !isDesktop,
+          // 微信式下拉：打开小程序面板（目录/票据来自小程序开放平台）。
+          onMiniProgramsPullDown: () => showMiniProgramDrawer(context),
+          onPanelOpenChanged: (open) {
+            if (!isDesktop && mounted && _mpPanelOpen != open) {
+              setState(() => _mpPanelOpen = open);
+            }
+          },
           onAvatarTap: () {
             if (!isDesktop) {
               // 在移动端：头像点击等同于点击底部导航栏的“我的”tab
@@ -794,7 +990,7 @@ class _IndexPageState extends State<IndexPage> {
               isThreeColumn ? (user) => _navigateToChatDetail(user) : null,
         );
       case 5:
-        // Unused (previously Chat)
+        // Unused (previously Chat / Workbench)
         return const SizedBox();
       case 6:
         return MyPage(apiService: widget.apiService);
@@ -875,7 +1071,12 @@ class _IndexPageState extends State<IndexPage> {
     String message;
     IconData icon;
 
-    switch (_currentIndex) {
+    // 移动端 `_currentIndex` 是底部导航下标，桌面端是统一 Tab 下标。
+    final bool wide = MediaQuery.sizeOf(context).width >= 600;
+    final int tabIndex =
+        wide ? _currentIndex : _getMobileTabIndex(_currentIndex);
+
+    switch (tabIndex) {
       case 0:
         message = '选择一个帖子查看详情';
         icon = Icons.article_outlined;
@@ -1075,6 +1276,17 @@ class _IndexPageState extends State<IndexPage> {
   }
 
   /// 构建消息图标（带未读小红点）
+  /// 首页 Tab 上的新帖小红点。
+  Widget _buildNewPostsBadge(Widget child) {
+    if (_newPostsCount <= 0) return child;
+    return Badge.count(
+      count: _newPostsCount,
+      backgroundColor: AppColors.error,
+      textColor: Colors.white,
+      child: child,
+    );
+  }
+
   Widget _buildMessageIcon({required bool isSelected}) {
     final totalUnread = _unreadCount + _noticeUnreadCount;
 

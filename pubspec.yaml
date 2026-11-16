@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.6.6+17
+version: 0.6.7+18
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -54,6 +54,10 @@ dependencies:
   package_info_plus: ^8.0.0
   go_router: ^15.1.2
   saver_gallery: ^4.0.0
+  # 新帖本地通知（Android / Windows / Linux 支持；HarmonyOS 走原生 MethodChannel）
+  flutter_local_notifications: ^19.5.0
+  # 帖子内嵌音乐占位播放（Android/iOS/macOS/Web；OHOS/Windows 回退到音乐小程序）
+  just_audio: ^0.9.46
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +92,12 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/legal/
+    - assets/skins/
+    - assets/skins/programmers-day-2026/bg-desktop.webp
+    - assets/skins/programmers-day-2026/bg-mobile.webp
+    - assets/skins/programmers-day-2026/splash-desktop.webp
+    - assets/skins/programmers-day-2026/splash-mobile.webp
+    - assets/skins/programmers-day-2026/stickers/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

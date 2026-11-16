@@ -46,18 +46,14 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
   }
 
   Future<void> _loadRatingData() async {
-    final ratingResults = await Future.wait([
-      widget.apiService.getStarsDistribution(widget.postId),
-      widget.apiService.getUserPostRating(widget.postId),
-      widget.apiService.getAverageRating(widget.postId),
-    ]);
-
-    if (!mounted) return;
+    // 新版打分接口：详情里直接带 stars / averageRating / userStar。
+    final detail = await widget.apiService.getRatingPostDetail(widget.postId);
+    if (!mounted || detail.id == 0) return;
 
     setState(() {
-      _stars = ratingResults[0] as List<int>;
-      _userRating = ratingResults[1] as int;
-      _averageRating = ratingResults[2] as double;
+      _stars = detail.stars.length == 5 ? detail.stars : [0, 0, 0, 0, 0];
+      _userRating = detail.userRating;
+      _averageRating = detail.rating;
     });
   }
 
@@ -68,35 +64,25 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
     });
 
     try {
-      final userPhone = StorageService().user?.phone;
-      if (userPhone == null || userPhone.isEmpty) {
-          SnackBarHelper.show(context, '请先登录');
-          setState(() {
-            _userRating = oldRating;
-          });
-          return;
+      if (StorageService().user?.phone.isEmpty ?? true) {
+        SnackBarHelper.show(context, '请先登录');
+        setState(() {
+          _userRating = oldRating;
+        });
+        return;
       }
 
-      final success = await widget.apiService.submitRating(
-        userPhone,
+      final success = await widget.apiService.submitRatingStar(
         widget.postId,
         rating,
       );
 
       if (success) {
-        // 重新获取评分分布
-        final results = await Future.wait([
-          widget.apiService.getStarsDistribution(widget.postId),
-          widget.apiService.getAverageRating(widget.postId),
-        ]);
-        
+        // 重新获取详情，刷新星级分布与平均分
+        await _loadRatingData();
         if (mounted) {
-          setState(() {
-            _stars = results[0] as List<int>;
-            _averageRating = results[1] as double;
-          });
+          SnackBarHelper.show(context, '评分成功');
         }
-        SnackBarHelper.show(context, '评分成功');
       } else {
         if (mounted) {
           setState(() {
@@ -122,6 +108,13 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
       postId: widget.postId,
       apiService: widget.apiService,
       postType: 'rating',
+      loadPost: (postId, userPhone) =>
+          widget.apiService.getRatingPostDetail(postId),
+      loadComments: (postId, userPhone) =>
+          widget.apiService.getRatingComments(postId),
+      likePost: (postId, userPhone) => widget.apiService.likeRatingPost(postId),
+      likeComment: (commentId, userPhone) =>
+          widget.apiService.likeRatingComment(commentId),
       topContent: RatingDistribution(
         stars: _stars,
         averageRating: _averageRating,
@@ -131,15 +124,17 @@ class _ScorePostDetailPageState extends State<ScorePostDetailPage> {
         onRatingClick: _handleRatingClick,
       ),
       onSendComment: (content) async {
-        final userPhone = StorageService().user?.phone;
-        if (userPhone == null || userPhone.isEmpty) {
+        if (StorageService().user?.phone.isEmpty ?? true) {
           SnackBarHelper.show(context, '请先登录');
           return false;
         }
-        return await widget.apiService.sendRatingComment(
-          content,
+        if (_userRating <= 0) {
+          SnackBarHelper.show(context, '请先选择星级再评论');
+          return false;
+        }
+        return await widget.apiService.createRatingComment(
           widget.postId,
-          userPhone,
+          content,
           _userRating,
         );
       },

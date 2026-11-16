@@ -87,7 +87,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
               '提交',
               style: TextStyle(
                 fontSize: 16,
-                color: _isSubmitting ? context.textSecondaryColor : AppColors.primary,
+                color: _isSubmitting
+                    ? context.textSecondaryColor
+                    : AppColors.primary,
               ),
             ),
           ),

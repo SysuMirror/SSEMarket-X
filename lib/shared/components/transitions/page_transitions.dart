@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 
 /// 优化：
 /// 1. 只对新页面做动画，旧页面保持不动（减少一半的动画计算）
@@ -28,7 +29,7 @@ class CustomPageTransitionsBuilder extends PageTransitionsBuilder {
         parent: animation,
         // 使用标准的 fastOutSlowIn (Material 标准 ease)
         // 这种曲线符合物理直觉，且计算开销小
-        curve: Curves.fastOutSlowIn, 
+        curve: Curves.fastOutSlowIn,
       )),
       child: child,
     );

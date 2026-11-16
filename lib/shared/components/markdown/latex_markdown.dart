@@ -4,12 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:markdown/markdown.dart' as m;
-import 'package:markdown_widget/markdown_widget.dart' hide ImageViewer, MarkdownWidget;
+import 'package:markdown_widget/markdown_widget.dart'
+    hide ImageViewer, MarkdownWidget;
 import 'package:markdown_widget/markdown_widget.dart' as mw show MarkdownWidget;
 import 'package:sse_market_x/core/api/api_service.dart';
 import 'package:sse_market_x/core/services/media_cache_service.dart';
 import 'package:sse_market_x/shared/components/media/image_viewer.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
+import 'package:sse_market_x/shared/components/music/post_music_card.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 
@@ -22,16 +24,24 @@ MarkdownStyleSheet getAdaptiveMarkdownStyleSheet(BuildContext context) {
 
   return MarkdownStyleSheet(
     p: TextStyle(fontSize: 16, color: textPrimaryColor, height: 1.5),
-    h1: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimaryColor),
-    h2: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimaryColor),
-    h3: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimaryColor),
-    h4: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimaryColor),
-    h5: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textPrimaryColor),
-    h6: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h1: TextStyle(
+        fontSize: 24, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h2: TextStyle(
+        fontSize: 20, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h3: TextStyle(
+        fontSize: 18, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h4: TextStyle(
+        fontSize: 16, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h5: TextStyle(
+        fontSize: 14, fontWeight: FontWeight.bold, color: textPrimaryColor),
+    h6: TextStyle(
+        fontSize: 12, fontWeight: FontWeight.bold, color: textPrimaryColor),
     em: TextStyle(fontStyle: FontStyle.italic, color: textPrimaryColor),
     strong: TextStyle(fontWeight: FontWeight.bold, color: textPrimaryColor),
-    del: TextStyle(decoration: TextDecoration.lineThrough, color: textSecondaryColor),
-    blockquote: TextStyle(fontSize: 16, color: textSecondaryColor, fontStyle: FontStyle.italic),
+    del: TextStyle(
+        decoration: TextDecoration.lineThrough, color: textSecondaryColor),
+    blockquote: TextStyle(
+        fontSize: 16, color: textSecondaryColor, fontStyle: FontStyle.italic),
     img: const TextStyle(),
     checkbox: TextStyle(color: AppColors.primary),
     listBullet: TextStyle(fontSize: 16, color: textPrimaryColor),
@@ -56,7 +66,8 @@ MarkdownStyleSheet getAdaptiveMarkdownStyleSheet(BuildContext context) {
     horizontalRuleDecoration: BoxDecoration(
       border: Border(top: BorderSide(color: context.dividerColor, width: 1)),
     ),
-    a: const TextStyle(color: AppColors.primary, decoration: TextDecoration.none),
+    a: const TextStyle(
+        color: AppColors.primary, decoration: TextDecoration.none),
   );
 }
 
@@ -143,6 +154,48 @@ class LatexSyntax extends m.InlineSyntax {
   }
 }
 
+// ===== 帖子内嵌音乐：独占一行的 `::music 123::` =====
+const _musicTag = 'mp-music';
+
+SpanNodeGeneratorWithTag musicGenerator = SpanNodeGeneratorWithTag(
+  tag: _musicTag,
+  generator: (e, config, visitor) => MusicNode(e.attributes, config),
+);
+
+class MusicNode extends SpanNode {
+  final Map<String, String> attributes;
+  final MarkdownConfig config;
+
+  MusicNode(this.attributes, this.config);
+
+  @override
+  InlineSpan build() {
+    final id = int.tryParse(attributes['id'] ?? '') ?? 0;
+    if (id <= 0) {
+      return TextSpan(text: attributes.toString(), style: parentStyle);
+    }
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: PostMusicCard(musicID: id),
+    );
+  }
+}
+
+class MusicSyntax extends m.BlockSyntax {
+  @override
+  RegExp get pattern => RegExp(r'^::music\s+(\d+)::\s*$');
+
+  @override
+  m.Node? parse(m.BlockParser parser) {
+    final match = pattern.firstMatch(parser.current.content);
+    if (match == null) return null;
+    parser.advance();
+    final element = m.Element(_musicTag, <m.Node>[]);
+    element.attributes['id'] = match.group(1) ?? '';
+    return element;
+  }
+}
+
 /// 图片上下文 - 用于在多图场景下共享所有图片 URL
 class MarkdownImageContext extends InheritedWidget {
   final List<String> imageUrls;
@@ -167,13 +220,13 @@ class MarkdownImageContext extends InheritedWidget {
 /// 同时支持 Markdown 格式和 HTML img 标签
 List<String> _extractImageUrls(String markdown) {
   final urls = <String>[];
-  
+
   // 先将 HTML img 标签转换为 Markdown 格式
   final processedMarkdown = _convertHtmlImagesToMarkdown(markdown);
-  
+
   // 匹配 Markdown 图片语法
   final imagePattern = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
-  
+
   for (final match in imagePattern.allMatches(processedMarkdown)) {
     var urlPart = match.group(2) ?? '';
     // 处理带 title 的情况
@@ -190,7 +243,7 @@ List<String> _extractImageUrls(String markdown) {
       urls.add(originalUrl);
     }
   }
-  
+
   return urls;
 }
 
@@ -242,20 +295,17 @@ String _encodeImageUrl(String url) {
     }
 
     // 对路径中的每个段进行编码
-    final encodedPath = path
-        .split('/')
-        .map((segment) {
-          if (segment.isEmpty) return segment;
-          // 先解码（处理已编码的情况），再重新编码
-          try {
-            final decoded = Uri.decodeComponent(segment);
-            return Uri.encodeComponent(decoded);
-          } catch (e) {
-            // 如果解码失败，直接编码
-            return Uri.encodeComponent(segment);
-          }
-        })
-        .join('/');
+    final encodedPath = path.split('/').map((segment) {
+      if (segment.isEmpty) return segment;
+      // 先解码（处理已编码的情况），再重新编码
+      try {
+        final decoded = Uri.decodeComponent(segment);
+        return Uri.encodeComponent(decoded);
+      } catch (e) {
+        // 如果解码失败，直接编码
+        return Uri.encodeComponent(segment);
+      }
+    }).join('/');
 
     return '$baseUrl$encodedPath$query';
   }
@@ -582,11 +632,13 @@ class _CachedMarkdownImageState extends State<_CachedMarkdownImage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.broken_image_outlined, color: context.textTertiaryColor, size: 32),
+              Icon(Icons.broken_image_outlined,
+                  color: context.textTertiaryColor, size: 32),
               const SizedBox(height: 8),
               Text(
                 '图片加载失败',
-                style: TextStyle(fontSize: 12, color: context.textTertiaryColor),
+                style:
+                    TextStyle(fontSize: 12, color: context.textTertiaryColor),
               ),
             ],
           ),
@@ -612,7 +664,8 @@ class _CachedMarkdownImageState extends State<_CachedMarkdownImage>
                 height: 120,
                 color: context.backgroundColor,
                 child: Center(
-                  child: Icon(Icons.broken_image_outlined, color: context.textTertiaryColor),
+                  child: Icon(Icons.broken_image_outlined,
+                      color: context.textTertiaryColor),
                 ),
               ),
             ),
@@ -638,23 +691,25 @@ SpanNodeGeneratorWithTag cachedImageGenerator = SpanNodeGeneratorWithTag(
 String _convertHtmlImagesToMarkdown(String content) {
   // 使用单一正则匹配所有 img 标签，然后解析属性
   final imgTagPattern = RegExp(
-    r'<img\s+([^>]*)/?>', 
+    r'<img\s+([^>]*)/?>',
     caseSensitive: false,
   );
-  
+
   return content.replaceAllMapped(imgTagPattern, (match) {
     final attributes = match.group(1) ?? '';
-    
+
     // 提取 src 属性
-    final srcMatch = RegExp(r'''src=["']([^"'>]+)["']''').firstMatch(attributes);
+    final srcMatch =
+        RegExp(r'''src=["']([^"'>]+)["']''').firstMatch(attributes);
     final src = srcMatch?.group(1) ?? '';
-    
+
     if (src.isEmpty) return match.group(0) ?? '';
-    
+
     // 提取 alt 属性
-    final altMatch = RegExp(r'''alt=["']([^"'>]*)["']''').firstMatch(attributes);
+    final altMatch =
+        RegExp(r'''alt=["']([^"'>]*)["']''').firstMatch(attributes);
     final alt = altMatch?.group(1) ?? '';
-    
+
     return '![$alt]($src)';
   });
 }
@@ -722,10 +777,10 @@ String _convertHtmlMediaToMarkdown(String content) {
 String _preprocessMarkdownImageUrls(String markdown) {
   // 第一步：将 HTML img 标签转换为 Markdown 格式
   String processedMarkdown = _convertHtmlImagesToMarkdown(markdown);
-  
+
   // 第二步：将 HTML audio/video 标签转换为 Markdown 链接
   processedMarkdown = _convertHtmlMediaToMarkdown(processedMarkdown);
-  
+
   // 第三步：匹配 Markdown 图片语法: ![alt](url)
   final imagePattern = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
 
@@ -774,15 +829,17 @@ class LatexMarkdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final config = isDark
-        ? MarkdownConfig.darkConfig
-        : MarkdownConfig.defaultConfig;
+    final config =
+        isDark ? MarkdownConfig.darkConfig : MarkdownConfig.defaultConfig;
 
     final textPrimaryColor = context.textPrimaryColor;
     final textSecondaryColor = context.textSecondaryColor;
     final backgroundColor = context.backgroundColor;
 
-    final generators = <SpanNodeGeneratorWithTag>[latexGenerator];
+    final generators = <SpanNodeGeneratorWithTag>[
+      latexGenerator,
+      musicGenerator,
+    ];
     if (enableImageCache) {
       generators.add(cachedImageGenerator);
     }
@@ -791,28 +848,33 @@ class LatexMarkdown extends StatelessWidget {
     final processedData = _preprocessMarkdownImageUrls(data);
 
     final markdownConfig = config.copy(configs: [
-      PConfig(textStyle: TextStyle(
+      PConfig(
+          textStyle: TextStyle(
         fontSize: fontSize,
         color: textPrimaryColor,
         // shrinkWrap 模式不设置 height，使用默认行高避免底部多余空间
         height: shrinkWrap ? null : 1.5,
       )),
-      H1Config(style: TextStyle(
+      H1Config(
+          style: TextStyle(
         fontSize: fontSize + 8,
         fontWeight: FontWeight.bold,
         color: textPrimaryColor,
       )),
-      H2Config(style: TextStyle(
+      H2Config(
+          style: TextStyle(
         fontSize: fontSize + 4,
         fontWeight: FontWeight.bold,
         color: textPrimaryColor,
       )),
-      H3Config(style: TextStyle(
+      H3Config(
+          style: TextStyle(
         fontSize: fontSize + 2,
         fontWeight: FontWeight.bold,
         color: textPrimaryColor,
       )),
-      CodeConfig(style: TextStyle(
+      CodeConfig(
+          style: TextStyle(
         fontSize: fontSize - 2,
         color: AppColors.primary,
         backgroundColor: backgroundColor,
@@ -827,7 +889,8 @@ class LatexMarkdown extends StatelessWidget {
         sideColor: AppColors.primary,
         textColor: textSecondaryColor,
       ),
-      const LinkConfig(style: TextStyle(
+      const LinkConfig(
+          style: TextStyle(
         color: AppColors.primary,
         decoration: TextDecoration.none,
       )),
@@ -836,8 +899,11 @@ class LatexMarkdown extends StatelessWidget {
     final generator = MarkdownGenerator(
       generators: generators,
       inlineSyntaxList: [LatexSyntax()],
+      blockSyntaxList: [MusicSyntax()],
       richTextBuilder: shrinkWrap ? (span) => Text.rich(span) : null,
-      linesMargin: shrinkWrap ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 8),
+      linesMargin: shrinkWrap
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(vertical: 8),
     );
 
     // 提取所有图片 URL，用于多图浏览
@@ -924,7 +990,8 @@ class _PostLinkInlineState extends State<_PostLinkInline> {
   Future<void> _loadPostTitle() async {
     try {
       final user = await widget.apiService.getUserInfo();
-      final post = await widget.apiService.getPostDetail(widget.postId, user.phone);
+      final post =
+          await widget.apiService.getPostDetail(widget.postId, user.phone);
 
       if (mounted) {
         setState(() {

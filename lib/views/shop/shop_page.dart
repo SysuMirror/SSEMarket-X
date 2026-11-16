@@ -41,11 +41,11 @@ class _ShopPageState extends State<ShopPage> {
     super.initState();
     _loadInitialProducts();
   }
-  
+
   Future<void> _loadInitialProducts() async {
     // 尝试从缓存加载
     await _loadCachedProducts();
-    
+
     // 后台静默刷新
     if (_hasLoadedOnce) {
       _loadProducts(silent: true);
@@ -53,18 +53,19 @@ class _ShopPageState extends State<ShopPage> {
       _loadProducts();
     }
   }
-  
+
   /// 从本地缓存加载商品列表
   Future<void> _loadCachedProducts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final homeJson = prefs.getString('shop_home_products_cache');
       final historyJson = prefs.getString('shop_history_products_cache');
-      
+
       if (homeJson != null && homeJson.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(homeJson);
-        final cachedProducts = jsonList.map((json) => ProductModel.fromDynamic(json)).toList();
-        
+        final cachedProducts =
+            jsonList.map((json) => ProductModel.fromDynamic(json)).toList();
+
         if (mounted) {
           setState(() {
             _homeProducts = cachedProducts;
@@ -73,38 +74,40 @@ class _ShopPageState extends State<ShopPage> {
           });
         }
       }
-      
+
       if (historyJson != null && historyJson.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(historyJson);
-        final cachedProducts = jsonList.map((json) => ProductModel.fromDynamic(json)).toList();
-        
+        final cachedProducts =
+            jsonList.map((json) => ProductModel.fromDynamic(json)).toList();
+
         if (mounted) {
           setState(() {
             _historyProducts = cachedProducts;
           });
         }
       }
-      
+
       // 如果没有任何缓存，不设置 _isLoading，让后续的 _loadProducts 正常执行
     } catch (e) {
       debugPrint('加载缓存商品失败: $e');
       // 加载失败，不设置 _isLoading，让后续的 _loadProducts 正常执行
     }
   }
-  
+
   /// 保存商品列表到本地缓存
   Future<void> _saveCachedProducts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       if (_homeProducts.isNotEmpty) {
         final jsonList = _homeProducts.map((p) => p.toJson()).toList();
         await prefs.setString('shop_home_products_cache', jsonEncode(jsonList));
       }
-      
+
       if (_historyProducts.isNotEmpty) {
         final jsonList = _historyProducts.map((p) => p.toJson()).toList();
-        await prefs.setString('shop_history_products_cache', jsonEncode(jsonList));
+        await prefs.setString(
+            'shop_history_products_cache', jsonEncode(jsonList));
       }
     } catch (e) {
       debugPrint('保存缓存商品失败: $e');
@@ -136,7 +139,7 @@ class _ShopPageState extends State<ShopPage> {
           _isRefreshing = false;
           _hasLoadedOnce = true;
         });
-        
+
         // 保存到缓存（仅在正常加载时）
         if (!silent) {
           _saveCachedProducts();
@@ -171,7 +174,8 @@ class _ShopPageState extends State<ShopPage> {
     // Note: In IndexPage, bottom nav is overlay, so we need to add its height.
     // Standard bottom nav height is 56? IndexPage uses BottomNavigationBar (default height).
     // Plus safe area bottom.
-    final bottomPadding = kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
+    final bottomPadding =
+        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: context.backgroundColor,
@@ -211,7 +215,7 @@ class _ShopPageState extends State<ShopPage> {
           builder: (context, isBlurEnabled, _) {
             Widget content = Container(
               decoration: BoxDecoration(
-                color: isBlurEnabled 
+                color: isBlurEnabled
                     ? context.blurBackgroundColor.withOpacity(0.82)
                     : context.surfaceColor,
                 border: Border(
@@ -222,7 +226,7 @@ class _ShopPageState extends State<ShopPage> {
                 ),
               ),
             );
-            
+
             if (isBlurEnabled) {
               return ClipRect(
                 child: BackdropFilter(
@@ -241,7 +245,8 @@ class _ShopPageState extends State<ShopPage> {
         automaticallyImplyLeading: false,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(36),
-          child: _buildTabs(context, transparent: true), // Pass transparent flag
+          child:
+              _buildTabs(context, transparent: true), // Pass transparent flag
         ),
       ),
       body: !_hasLoadedOnce && _isLoading && !_isRefreshing
@@ -268,7 +273,9 @@ class _ShopPageState extends State<ShopPage> {
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      color: transparent ? Colors.transparent : context.surfaceColor, // Handle transparency
+      color: transparent
+          ? Colors.transparent
+          : context.surfaceColor, // Handle transparency
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -296,7 +303,8 @@ class _ShopPageState extends State<ShopPage> {
               label,
               style: TextStyle(
                 fontSize: 15,
-                color: isSelected ? AppColors.primary : context.textSecondaryColor,
+                color:
+                    isSelected ? AppColors.primary : context.textSecondaryColor,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -318,7 +326,7 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildProductGrid(int index, double topPadding, double bottomPadding) {
     final products = _getProductsForIndex(index);
-    
+
     if (products.isEmpty) {
       return Padding(
         padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
@@ -372,7 +380,7 @@ class _ShopPageState extends State<ShopPage> {
                 products[itemIndex].id,
                 products[itemIndex],
               );
-              
+
               if (widget.onProductTap != null) {
                 widget.onProductTap!(products[itemIndex].id);
               } else {

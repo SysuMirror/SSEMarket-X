@@ -6,8 +6,10 @@ import 'package:sse_market_x/shared/components/inputs/custom_switch.dart';
 enum SettingsListItemType {
   /// 普通导航项（带右箭头）
   navigation,
+
   /// 开关项
   toggle,
+
   /// 自定义尾部组件
   custom,
 }
@@ -17,40 +19,40 @@ enum SettingsListItemType {
 class SettingsListItem extends StatelessWidget {
   /// 标题
   final String title;
-  
+
   /// 副标题（可选）
   final String? subtitle;
-  
+
   /// 左侧图标（可选）
   final String? leadingIcon;
-  
+
   /// 左侧图标颜色
   final Color? leadingIconColor;
-  
+
   /// 列表项类型
   final SettingsListItemType type;
-  
+
   /// 点击回调
   final VoidCallback? onTap;
-  
+
   /// 开关状态（仅 toggle 类型）
   final bool? switchValue;
-  
+
   /// 开关变化回调（仅 toggle 类型）
   final ValueChanged<bool>? onSwitchChanged;
-  
+
   /// 自定义尾部组件（仅 custom 类型）
   final Widget? trailing;
-  
+
   /// 标题颜色
   final Color? titleColor;
-  
+
   /// 是否是第一项（影响圆角）
   final bool isFirst;
-  
+
   /// 是否是最后一项（影响圆角）
   final bool isLast;
-  
+
   const SettingsListItem({
     super.key,
     required this.title,
@@ -78,16 +80,17 @@ class SettingsListItem extends StatelessWidget {
     } else if (isLast) {
       borderRadius = const BorderRadius.vertical(bottom: Radius.circular(12));
     }
-    
+
     final effectiveTitleColor = titleColor ?? context.textPrimaryColor;
-    final effectiveLeadingIconColor = leadingIconColor ?? context.textSecondaryColor;
-    
+    final effectiveLeadingIconColor =
+        leadingIconColor ?? context.textSecondaryColor;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: type == SettingsListItemType.toggle 
-            ? (onSwitchChanged != null && switchValue != null 
-                ? () => onSwitchChanged!(!switchValue!) 
+        onTap: type == SettingsListItemType.toggle
+            ? (onSwitchChanged != null && switchValue != null
+                ? () => onSwitchChanged!(!switchValue!)
                 : null)
             : onTap,
         borderRadius: borderRadius,
@@ -114,7 +117,7 @@ class SettingsListItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
               ],
-              
+
               // 标题和副标题
               Expanded(
                 child: Column(
@@ -141,7 +144,7 @@ class SettingsListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // 尾部组件
               const SizedBox(width: 12),
               _buildTrailing(context),
@@ -151,7 +154,7 @@ class SettingsListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildTrailing(BuildContext context) {
     switch (type) {
       case SettingsListItemType.navigation:
@@ -164,7 +167,7 @@ class SettingsListItem extends StatelessWidget {
             BlendMode.srcIn,
           ),
         );
-        
+
       case SettingsListItemType.toggle:
         if (switchValue != null && onSwitchChanged != null) {
           return CustomSwitch(
@@ -173,7 +176,7 @@ class SettingsListItem extends StatelessWidget {
           );
         }
         return const SizedBox.shrink();
-        
+
       case SettingsListItemType.custom:
         return trailing ?? const SizedBox.shrink();
     }
@@ -184,7 +187,7 @@ class SettingsListItem extends StatelessWidget {
 class SettingsListGroup extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry? margin;
-  
+
   const SettingsListGroup({
     super.key,
     required this.children,

@@ -6,8 +6,10 @@ class SegmentedControl<T> extends StatefulWidget {
   final T selectedSegment;
   final ValueChanged<T> onSegmentChanged;
   final String Function(T) labelBuilder;
+
   /// 紧凑尺寸（如 28），不传则默认 36
   final double? height;
+
   /// 文字大小，不传则根据 height 推断（紧凑时 12，默认 14）
   final double? fontSize;
 
@@ -40,7 +42,7 @@ class _SegmentedControlState<T> extends State<SegmentedControl<T>>
       lowerBound: 0.0,
       upperBound: 1.0,
     );
-    
+
     // 按下时轻微缩小
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(
@@ -98,14 +100,11 @@ class _SegmentedControlState<T> extends State<SegmentedControl<T>>
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 背景色（与项目主题契合的 iOS 18 风格）
-    final backgroundColor = isDark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFE5E5EA);
+    final backgroundColor =
+        isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
 
     // 滑块颜色
-    final thumbColor = isDark
-        ? const Color(0xFF636366)
-        : Colors.white;
+    final thumbColor = isDark ? const Color(0xFF636366) : Colors.white;
 
     // 文字颜色
     final selectedTextColor = isDark ? Colors.white : Colors.black;
@@ -120,7 +119,8 @@ class _SegmentedControlState<T> extends State<SegmentedControl<T>>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final double segmentWidth = constraints.maxWidth / widget.segments.length;
+          final double segmentWidth =
+              constraints.maxWidth / widget.segments.length;
 
           return Stack(
             children: [
@@ -128,7 +128,8 @@ class _SegmentedControlState<T> extends State<SegmentedControl<T>>
               AnimatedAlign(
                 alignment: Alignment(
                   widget.segments.length > 1
-                      ? -1.0 + (selectedIndex * 2 / (widget.segments.length - 1))
+                      ? -1.0 +
+                          (selectedIndex * 2 / (widget.segments.length - 1))
                       : 0.0,
                   0.0,
                 ),
@@ -180,8 +181,12 @@ class _SegmentedControlState<T> extends State<SegmentedControl<T>>
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(
                               fontSize: fontSize,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              color: isSelected ? selectedTextColor : unselectedTextColor,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? selectedTextColor
+                                  : unselectedTextColor,
                               fontFamily: '.SF Pro Text',
                               letterSpacing: -0.2,
                             ),

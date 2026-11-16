@@ -81,15 +81,18 @@ class PartitionSelector extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final partition = partitions[index];
                     final isSelected = partition == selectedPartition;
-                    
+
                     return Material(
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () => Navigator.of(context).pop(partition),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primary.withAlpha(25) : Colors.transparent,
+                            color: isSelected
+                                ? AppColors.primary.withAlpha(25)
+                                : Colors.transparent,
                           ),
                           child: Row(
                             children: [
@@ -97,8 +100,12 @@ class PartitionSelector extends StatelessWidget {
                                 partition,
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                  color: isSelected ? AppColors.primary : context.textPrimaryColor,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : context.textPrimaryColor,
                                 ),
                               ),
                               const Spacer(),

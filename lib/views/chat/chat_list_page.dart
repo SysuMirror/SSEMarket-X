@@ -98,7 +98,8 @@ class _ChatListPageState extends State<ChatListPage>
       final index = _contacts.indexWhere((c) => c.userId == newContact.userId);
       if (index != -1) {
         _contacts[index].unreadCount = newContact.unreadCount;
-        _contacts[index].lastMessage = newContact.lastMessage ?? _contacts[index].lastMessage;
+        _contacts[index].lastMessage =
+            newContact.lastMessage ?? _contacts[index].lastMessage;
         if (newContact.lastMessageTime != null) {
           _contacts[index].lastMessageTime = newContact.lastMessageTime;
         }
@@ -172,15 +173,16 @@ class _ChatListPageState extends State<ChatListPage>
 
   String _formatTime(DateTime? time) {
     if (time == null) return '';
-    
+
     final localTime = time.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final messageDay = DateTime(localTime.year, localTime.month, localTime.day);
     final diff = today.difference(messageDay).inDays;
-    
-    final timeStr = '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
-    
+
+    final timeStr =
+        '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+
     if (diff == 0) {
       // 今天
       return timeStr;
@@ -198,40 +200,41 @@ class _ChatListPageState extends State<ChatListPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用 super.build
-    
+
     // Default padding if not provided. Default includes bottom 60 for tabbar
-    final padding = widget.contentPadding ?? const EdgeInsets.fromLTRB(16, 12, 16, 60);
+    final padding =
+        widget.contentPadding ?? const EdgeInsets.fromLTRB(16, 12, 16, 60);
 
     // 直接显示内容，不显示 loading 状态
     // 如果正在加载且没有联系人，显示空状态
     return _contacts.isEmpty
         ? Padding(
-             padding: EdgeInsets.only(top: padding.resolve(TextDirection.ltr).top), 
-             child: _buildEmptyState(context)
-          )
+            padding:
+                EdgeInsets.only(top: padding.resolve(TextDirection.ltr).top),
+            child: _buildEmptyState(context))
         : RefreshIndicator(
-             edgeOffset: padding.resolve(TextDirection.ltr).top,
-             onRefresh: () async {
-                  _initWebSocket();
-                  await Future.delayed(const Duration(seconds: 1));
-                },
-                color: AppColors.primary,
-                child: ListView.builder(
-                  padding: padding,
-                  itemCount: _contacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = _contacts[index];
-                    return _buildContactItem(context, contact);
-                  },
-                ),
-              );
+            edgeOffset: padding.resolve(TextDirection.ltr).top,
+            onRefresh: () async {
+              _initWebSocket();
+              await Future.delayed(const Duration(seconds: 1));
+            },
+            color: AppColors.primary,
+            child: ListView.builder(
+              padding: padding,
+              itemCount: _contacts.length,
+              itemBuilder: (context, index) {
+                final contact = _contacts[index];
+                return _buildContactItem(context, contact);
+              },
+            ),
+          );
   }
 
   Widget _buildContactItem(BuildContext context, ChatContact contact) {
     final hasUnread = contact.unreadCount > 0;
     final lastMsg = contact.lastMessage ?? contact.intro ?? '';
     final timeStr = _formatTime(contact.lastMessageTime);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -262,7 +265,8 @@ class _ChatListPageState extends State<ChatListPage>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: context.backgroundColor,
-                          border: Border.all(color: context.dividerColor, width: 0.5),
+                          border: Border.all(
+                              color: context.dividerColor, width: 0.5),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: contact.avatarUrl.isNotEmpty
@@ -283,15 +287,19 @@ class _ChatListPageState extends State<ChatListPage>
                         right: -6,
                         top: -4,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: AppColors.error,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                          constraints:
+                              const BoxConstraints(minWidth: 16, minHeight: 14),
                           child: Center(
                             child: Text(
-                              contact.unreadCount > 99 ? '99+' : '${contact.unreadCount}',
+                              contact.unreadCount > 99
+                                  ? '99+'
+                                  : '${contact.unreadCount}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
@@ -316,7 +324,9 @@ class _ChatListPageState extends State<ChatListPage>
                               contact.name,
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                                fontWeight: hasUnread
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
                                 color: context.textPrimaryColor,
                               ),
                               maxLines: 1,
@@ -328,7 +338,9 @@ class _ChatListPageState extends State<ChatListPage>
                               timeStr,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: hasUnread ? AppColors.primary : context.textTertiaryColor,
+                                color: hasUnread
+                                    ? AppColors.primary
+                                    : context.textTertiaryColor,
                               ),
                             ),
                         ],
@@ -340,7 +352,9 @@ class _ChatListPageState extends State<ChatListPage>
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
-                          color: hasUnread ? context.textPrimaryColor : context.textSecondaryColor,
+                          color: hasUnread
+                              ? context.textPrimaryColor
+                              : context.textSecondaryColor,
                           height: 1.3,
                         ),
                       ),

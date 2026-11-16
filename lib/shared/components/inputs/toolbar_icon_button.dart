@@ -47,8 +47,7 @@ class ToolbarIconButton extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               padding: const EdgeInsets.all(6),
-              constraints:
-                  const BoxConstraints(minWidth: 32, minHeight: 32),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               child: Icon(
                 icon,
                 size: size,

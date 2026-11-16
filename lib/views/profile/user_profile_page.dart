@@ -44,7 +44,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadUserInfo() async {
     if (widget.userPhone != null && widget.userPhone!.isNotEmpty) {
       // Use phone to get detailed info if available
-      final user = await widget.apiService.getDetailedUserInfo(widget.userPhone!);
+      final user =
+          await widget.apiService.getDetailedUserInfo(widget.userPhone!);
       if (mounted) {
         setState(() {
           _user = user;
@@ -54,7 +55,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     } else {
       // Use ID to get detailed info
       final user = await widget.apiService.getInfoById(widget.userId);
-       if (mounted) {
+      if (mounted) {
         setState(() {
           _user = user;
           _isLoading = false;
@@ -65,7 +66,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   void _handleStartChat() {
     if (_user == null) return;
-    
+
     final currentUser = StorageService().user;
     if (currentUser?.userId == _user!.userId) {
       SnackBarHelper.show(context, '不能和自己聊天哦');
@@ -128,7 +129,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           height: 48,
                           child: ElevatedButton.icon(
                             onPressed: _handleStartChat,
-                            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                            icon: const Icon(Icons.chat_bubble_outline,
+                                color: Colors.white),
                             label: const Text(
                               '发私信',
                               style: TextStyle(
@@ -223,10 +225,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Widget _buildUserTextsAndExp() {
     final score = _user!.score;
-    final levelName = LevelUtils.getLevelName(score);
+    final levelName = LevelUtils.getDisplayTitle(score, _user?.customTitle ?? '');
     final nextExp = LevelUtils.getNextLevelExp(score);
     final progress = LevelUtils.getExpProgressPercent(score);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

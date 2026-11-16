@@ -156,7 +156,7 @@ class _AuthDesktopLayoutState extends State<AuthDesktopLayout>
                       final logoSize = (width * 0.22).clamp(110.0, 180.0);
                       final titleSize = (width * 0.06).clamp(30.0, 44.0);
                       final subtitleSize = (width * 0.03).clamp(17.0, 22.0);
-                      
+
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [

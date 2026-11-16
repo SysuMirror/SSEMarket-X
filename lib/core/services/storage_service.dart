@@ -26,7 +26,8 @@ class StorageService {
 
   static const int _thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
-  final ValueNotifier<UserModel?> userNotifier = ValueNotifier<UserModel?>(null);
+  final ValueNotifier<UserModel?> userNotifier =
+      ValueNotifier<UserModel?>(null);
 
   Future<void> init() async {
     if (_isInitialized) return;

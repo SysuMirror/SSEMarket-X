@@ -19,6 +19,8 @@ class PostModel {
   final List<int> stars;
   final int userRating;
   final int heat; // 热度值，用于热榜排名
+  final int coinCount; // 内容收到的币数
+  final int myCoins; // 我投在这个内容上的币数（0-2）
 
   const PostModel({
     required this.id,
@@ -41,6 +43,8 @@ class PostModel {
     this.stars = const [],
     this.userRating = 0,
     this.heat = 0,
+    this.coinCount = 0,
+    this.myCoins = 0,
   });
 
   /// 复制并修改点赞状态
@@ -66,6 +70,8 @@ class PostModel {
       stars: stars,
       userRating: userRating,
       heat: heat,
+      coinCount: coinCount,
+      myCoins: myCoins,
     );
   }
 
@@ -91,6 +97,8 @@ class PostModel {
       stars: [],
       userRating: 0,
       heat: 0,
+      coinCount: 0,
+      myCoins: 0,
     );
   }
 
@@ -117,6 +125,8 @@ class PostModel {
       'Stars': stars,
       'UserRating': userRating,
       'Heat': heat,
+      'Coin': coinCount,
+      'MyCoins': myCoins,
     };
   }
 
@@ -183,26 +193,47 @@ class PostModel {
     }
 
     return PostModel(
-      id: _readInt(['PostID', 'postID', 'id']),
+      id: _readInt(['PostID', 'postID', 'id', 'ratingPostID', 'RatingPostID']),
       title: _readString(['Title', 'title']),
       content: _readString(['Content', 'content']),
-      partition: _readString(['Partition', 'partition']),
+      partition: _readString(
+          ['Partition', 'partition', 'CategoryName', 'categoryName']),
       authorName: _readString(['UserName', 'userName', 'Name']),
-      authorAvatar: _readString(['UserAvatar', 'userAvatar', 'Avatar', 'avatar', 'AvatarURL', 'avatarURL']),
-      authorPhone: _readString(['UserTelephone', 'userTelephone', 'Phone', 'phone']),
-      createdAt: _readString(['PostTime', 'postTime', 'CreatedAt', 'createdAt', 'CreateTime']),
-      likeCount: _readInt(['LikeNum', 'likeNum', 'LikeCount', 'likeCount', 'Like']),
-      commentCount: _readInt(['CommentNum', 'commentNum', 'CommentCount', 'commentCount', 'Comment']),
+      authorAvatar: _readString([
+        'UserAvatar',
+        'userAvatar',
+        'Avatar',
+        'avatar',
+        'AvatarURL',
+        'avatarURL'
+      ]),
+      authorPhone:
+          _readString(['UserTelephone', 'userTelephone', 'Phone', 'phone']),
+      createdAt: _readString(
+          ['PostTime', 'postTime', 'CreatedAt', 'createdAt', 'CreateTime']),
+      likeCount:
+          _readInt(['LikeNum', 'likeNum', 'LikeCount', 'likeCount', 'Like']),
+      commentCount: _readInt([
+        'CommentNum',
+        'commentNum',
+        'CommentCount',
+        'commentCount',
+        'Comment'
+      ]),
       saveCount: _readInt(['SaveNum', 'saveNum', 'SaveCount', 'saveCount']),
       viewCount: _readInt(['Browse', 'browse', 'ViewNum', 'viewNum']),
       userScore: _readInt(['UserScore', 'userScore', 'Score']),
       userIdentity: _readString(['UserIdentity', 'userIdentity', 'Identity']),
       isLiked: _readBool(['IsLiked', 'isLiked']),
       isSaved: _readBool(['IsSaved', 'isSaved']),
-      rating: _readDouble(['Rating', 'rating']),
+      rating:
+          _readDouble(['Rating', 'rating', 'AverageRating', 'averageRating']),
       stars: _readListInt(['Stars', 'stars']),
-      userRating: _readInt(['UserRating', 'userRating']),
+      userRating:
+          _readInt(['UserRating', 'userRating', 'UserStar', 'userStar']),
       heat: _readInt(['Heat', 'heat']),
+      coinCount: _readInt(['Coin', 'coin', 'CoinNum', 'coinNum']),
+      myCoins: _readInt(['MyCoins', 'myCoins']),
     );
   }
 }

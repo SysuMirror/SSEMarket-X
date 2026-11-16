@@ -19,8 +19,8 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
   bool _isLoading = true;
 
   String get _title => widget.type == 'terms' ? '服务协议' : '隐私政策';
-  String get _assetPath => widget.type == 'terms' 
-      ? 'assets/legal/terms_of_service.md' 
+  String get _assetPath => widget.type == 'terms'
+      ? 'assets/legal/terms_of_service.md'
       : 'assets/legal/privacy_policy.md';
 
   @override

@@ -85,7 +85,8 @@ class CustomDialog extends StatelessWidget {
                     Expanded(
                       child: _DialogButton(
                         text: cancelText!,
-                        onPressed: onCancel ?? () => Navigator.of(context).pop(false),
+                        onPressed:
+                            onCancel ?? () => Navigator.of(context).pop(false),
                         isCancel: true,
                       ),
                     ),
@@ -101,7 +102,8 @@ class CustomDialog extends StatelessWidget {
                     Expanded(
                       child: _DialogButton(
                         text: confirmText!,
-                        onPressed: onConfirm ?? () => Navigator.of(context).pop(true),
+                        onPressed:
+                            onConfirm ?? () => Navigator.of(context).pop(true),
                         color: confirmColor ?? AppColors.primary,
                       ),
                     ),

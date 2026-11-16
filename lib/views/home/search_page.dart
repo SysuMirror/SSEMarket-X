@@ -48,14 +48,19 @@ class _SearchPageState extends State<SearchPage> {
   static const String _historyKey = 'search_history';
 
   final Map<String, String> _apiToDisplayPartition = {
-    '院务': '院务',
-    '课程交流': '课程',
-    '学习交流': '学习解惑',
-    '打听求助': '打听求助',
-    '日常吐槽': '随想随记',
-    '求职招募': '求职招募',
     '主页': '主页',
+    '学习交流': '学习交流',
+    '生活日常': '生活日常',
+    '社团活动': '社团活动',
+    '实习就业': '实习就业',
+    '期末资料': '期末资料',
+    '宿舍生活': '宿舍生活',
+    '技术分享': '技术分享',
+    '课程专区': '课程专区',
+    '组团捞人': '组团捞人',
     '其他': '其他',
+    // 旧分区名兜底
+    '课程交流': '课程专区',
   };
 
   String get _displayPartition =>
@@ -295,7 +300,8 @@ class _SearchPageState extends State<SearchPage> {
               ),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.only(left: 12), // 稍微增加左边距，替代原来的图标位置
+              contentPadding:
+                  const EdgeInsets.only(left: 12), // 稍微增加左边距，替代原来的图标位置
               suffixIcon: ValueListenableBuilder<TextEditingValue>(
                 valueListenable: _searchController,
                 builder: (context, value, child) {
@@ -559,7 +565,8 @@ class _SearchPageState extends State<SearchPage> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
                 '暂无搜索历史',
-                style: TextStyle(fontSize: 13, color: context.textTertiaryColor),
+                style:
+                    TextStyle(fontSize: 13, color: context.textTertiaryColor),
               ),
             ),
           )

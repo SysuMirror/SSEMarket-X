@@ -26,21 +26,23 @@ class BlurContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blurService = BlurEffectService();
-    
+
     return ValueListenableBuilder<bool>(
       valueListenable: blurService.enabledNotifier,
       builder: (context, isBlurEnabled, _) {
-        final baseDecoration = decoration ?? BoxDecoration(
-          color: isBlurEnabled 
-              ? context.blurBackgroundColor.withOpacity(opacity)
-              : context.blurBackgroundColor, // 不透明
-          border: border ?? Border(
-            bottom: BorderSide(
-              color: context.dividerColor.withOpacity(0.3),
-              width: 0.5,
-            ),
-          ),
-        );
+        final baseDecoration = decoration ??
+            BoxDecoration(
+              color: isBlurEnabled
+                  ? context.blurBackgroundColor.withOpacity(opacity)
+                  : context.blurBackgroundColor, // 不透明
+              border: border ??
+                  Border(
+                    bottom: BorderSide(
+                      color: context.dividerColor.withOpacity(0.3),
+                      width: 0.5,
+                    ),
+                  ),
+            );
 
         if (isBlurEnabled) {
           return ClipRect(
@@ -74,7 +76,7 @@ class BlurFlexibleSpace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blurService = BlurEffectService();
-    
+
     return ValueListenableBuilder<bool>(
       valueListenable: blurService.enabledNotifier,
       builder: (context, isBlurEnabled, _) {

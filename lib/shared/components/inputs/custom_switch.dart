@@ -8,7 +8,7 @@ class CustomSwitch extends StatefulWidget {
   final Color? activeColor;
   final Color? inactiveColor;
   final Color? thumbColor;
-  
+
   const CustomSwitch({
     super.key,
     required this.value,
@@ -22,7 +22,8 @@ class CustomSwitch extends StatefulWidget {
   State<CustomSwitch> createState() => _CustomSwitchState();
 }
 
-class _CustomSwitchState extends State<CustomSwitch> with SingleTickerProviderStateMixin {
+class _CustomSwitchState extends State<CustomSwitch>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -37,7 +38,7 @@ class _CustomSwitchState extends State<CustomSwitch> with SingleTickerProviderSt
       parent: _controller,
       curve: Curves.easeInOut,
     );
-    
+
     if (widget.value) {
       _controller.value = 1.0;
     }
@@ -65,9 +66,10 @@ class _CustomSwitchState extends State<CustomSwitch> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeColor = widget.activeColor ?? AppColors.primary;
-    final inactiveColor = widget.inactiveColor ?? (isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade300);
+    final inactiveColor = widget.inactiveColor ??
+        (isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade300);
     final thumbColor = widget.thumbColor ?? Colors.white;
-    
+
     return GestureDetector(
       onTap: () {
         widget.onChanged(!widget.value);
@@ -75,8 +77,9 @@ class _CustomSwitchState extends State<CustomSwitch> with SingleTickerProviderSt
       child: AnimatedBuilder(
         animation: _animation,
         builder: (context, child) {
-          final color = Color.lerp(inactiveColor, activeColor, _animation.value)!;
-          
+          final color =
+              Color.lerp(inactiveColor, activeColor, _animation.value)!;
+
           return Container(
             width: 51,
             height: 31,

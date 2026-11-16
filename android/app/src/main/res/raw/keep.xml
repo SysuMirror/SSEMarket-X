@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知 small icon 只通过 flutter_local_notifications 的字符串名称引用，
+     资源压缩器看不到静态引用，必须在 keep 名单里保留。 -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_notify" />

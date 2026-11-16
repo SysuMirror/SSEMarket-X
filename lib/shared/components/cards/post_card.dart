@@ -64,7 +64,8 @@ class _PostCardState extends State<PostCard> {
 
     setState(() {
       _isLiked = !_isLiked;
-      _likeCount = _isLiked ? _likeCount + 1 : (_likeCount - 1).clamp(0, 999999);
+      _likeCount =
+          _isLiked ? _likeCount + 1 : (_likeCount - 1).clamp(0, 999999);
     });
 
     try {
@@ -99,7 +100,9 @@ class _PostCardState extends State<PostCard> {
         borderRadius: BorderRadius.circular(12),
         onTap: widget.onTap,
         child: Padding(
-          padding: widget.isDense ? const EdgeInsets.all(12) : const EdgeInsets.all(16),
+          padding: widget.isDense
+              ? const EdgeInsets.all(12)
+              : const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -122,7 +125,8 @@ class _PostCardState extends State<PostCard> {
   }
 
   Widget _buildHeader() {
-    final authorName = widget.post.authorName.isNotEmpty ? widget.post.authorName : '匿名用户';
+    final authorName =
+        widget.post.authorName.isNotEmpty ? widget.post.authorName : '匿名用户';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center, // 垂直居中
@@ -146,7 +150,8 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   // 等级显示
-                  if (widget.post.userScore > 0 || widget.post.userScore == 0) ...[
+                  if (widget.post.userScore > 0 ||
+                      widget.post.userScore == 0) ...[
                     const SizedBox(width: 6),
                     Text(
                       LevelUtils.getLevelName(widget.post.userScore),
@@ -171,8 +176,7 @@ class _PostCardState extends State<PostCard> {
           ),
         ),
         // 移除右上角 More Icon，与鸿蒙版保持一致
-        if (widget.showRating) 
-          _buildRatingBadge(),
+        if (widget.showRating) _buildRatingBadge(),
       ],
     );
   }
@@ -184,8 +188,14 @@ class _PostCardState extends State<PostCard> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [context.surfaceColor.withOpacity(0.95), context.surfaceColor.withOpacity(0.9)]
-              : [Colors.white.withOpacity(0.95), const Color(0xFFF8FAFC).withOpacity(0.9)],
+              ? [
+                  context.surfaceColor.withOpacity(0.95),
+                  context.surfaceColor.withOpacity(0.9)
+                ]
+              : [
+                  Colors.white.withOpacity(0.95),
+                  const Color(0xFFF8FAFC).withOpacity(0.9)
+                ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -213,7 +223,7 @@ class _PostCardState extends State<PostCard> {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Colors.white, 
+                color: Colors.white,
               ),
             ),
           ),
@@ -240,7 +250,8 @@ class _PostCardState extends State<PostCard> {
           children: [
             _buildAvatar(),
             // 身份标识
-            if (widget.post.userIdentity == 'teacher' || widget.post.userIdentity == 'organization')
+            if (widget.post.userIdentity == 'teacher' ||
+                widget.post.userIdentity == 'organization')
               Positioned(
                 right: 0,
                 bottom: 0,
@@ -249,7 +260,8 @@ class _PostCardState extends State<PostCard> {
                   height: 14,
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: LevelUtils.getIdentityBackgroundColor(widget.post.userIdentity),
+                    color: LevelUtils.getIdentityBackgroundColor(
+                        widget.post.userIdentity),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1),
                   ),
@@ -308,7 +320,8 @@ class _PostCardState extends State<PostCard> {
           SizedBox(height: widget.isDense ? 4 : 8),
         ],
         // 内容预览：非紧凑模式显示，或者紧凑模式下显式开启显示
-        if (widget.post.content.isNotEmpty && (!widget.isDense || widget.showContentInDense)) ...[
+        if (widget.post.content.isNotEmpty &&
+            (!widget.isDense || widget.showContentInDense)) ...[
           Text(
             widget.post.content,
             maxLines: widget.isDense ? 2 : 3,
@@ -321,7 +334,9 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
         // 如果有 topWidget（通常包含了分区信息），则不在这里重复显示分区
-        if (widget.post.partition.isNotEmpty && widget.topWidget == null && !widget.hidePartition) ...[
+        if (widget.post.partition.isNotEmpty &&
+            widget.topWidget == null &&
+            !widget.hidePartition) ...[
           SizedBox(height: widget.isDense ? 4 : 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -355,24 +370,53 @@ class _PostCardState extends State<PostCard> {
             'assets/icons/ic_view.svg',
             widget.post.viewCount,
           ),
-          
+
           // 评论量
           _buildMetaItem(
             'assets/icons/ic_comment.svg',
             widget.post.commentCount,
           ),
-          
+
+          // 币数（投币入口在详情页）
+          _buildMetaIcon(
+            Icons.monetization_on_rounded,
+            widget.post.coinCount,
+            color: widget.post.myCoins > 0
+                ? const Color(0xFFFFB020)
+                : context.textSecondaryColor,
+          ),
+
           // 点赞量 - 使用本地状态实现乐观更新
           GestureDetector(
             onTap: _handleLikeTap,
             child: _buildMetaItem(
-              _isLiked ? 'assets/icons/ic_like_filled.svg' : 'assets/icons/ic_like.svg',
+              _isLiked
+                  ? 'assets/icons/ic_like_filled.svg'
+                  : 'assets/icons/ic_like.svg',
               _likeCount,
               color: _isLiked ? Colors.red : context.textSecondaryColor,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMetaIcon(IconData icon, int count, {Color? color}) {
+    final defaultColor = context.textSecondaryColor;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: color ?? defaultColor),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 13,
+            color: color ?? defaultColor,
+          ),
+        ),
+      ],
     );
   }
 

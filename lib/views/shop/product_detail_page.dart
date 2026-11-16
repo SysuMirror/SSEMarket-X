@@ -123,9 +123,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             '标记售出',
             style: TextStyle(
               fontSize: 14,
-              color: _isOperating
-                  ? context.textTertiaryColor
-                  : AppColors.primary,
+              color:
+                  _isOperating ? context.textTertiaryColor : AppColors.primary,
             ),
           ),
         ),

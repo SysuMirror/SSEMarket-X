@@ -23,7 +23,8 @@ class _TermsOfServicePageState extends State<TermsOfServicePage> {
 
   Future<void> _loadContent() async {
     try {
-      final content = await rootBundle.loadString('assets/legal/terms_of_service.md');
+      final content =
+          await rootBundle.loadString('assets/legal/terms_of_service.md');
       if (mounted) {
         setState(() {
           _content = content;

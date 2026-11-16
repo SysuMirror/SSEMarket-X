@@ -22,6 +22,7 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
   bool _isLoading = true;
   bool _hasError = false;
   int _loadKey = 0;
+
   /// 有 refreshToken 时首次 onPageFinished 会注入并 reload，此期间保持 loading，reload 完成后再显示内容
   bool _waitingForReload = false;
 
@@ -48,7 +49,8 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
     _waitingForReload = refreshToken.isNotEmpty && refreshTokenExpiry > 0;
 
     final uri = Uri.parse(_url).replace(
-      queryParameters: token.isNotEmpty ? <String, String>{'token': token} : null,
+      queryParameters:
+          token.isNotEmpty ? <String, String>{'token': token} : null,
     );
 
     _controller = WebViewController()
@@ -57,7 +59,11 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) {
-            if (mounted) setState(() { _isLoading = true; _hasError = false; });
+            if (mounted)
+              setState(() {
+                _isLoading = true;
+                _hasError = false;
+              });
           },
           onPageFinished: (_) async {
             if (!mounted) return;
@@ -95,7 +101,11 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
             }
           },
           onWebResourceError: (_) {
-            if (mounted) setState(() { _hasError = true; _isLoading = false; });
+            if (mounted)
+              setState(() {
+                _hasError = true;
+                _isLoading = false;
+              });
           },
         ),
       )
@@ -106,7 +116,11 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
   }
 
   static String _escapeJsString(String s) {
-    return s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('\n', r'\n').replaceAll('\r', r'\r');
+    return s
+        .replaceAll(r'\', r'\\')
+        .replaceAll("'", r"\'")
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', r'\r');
   }
 
   void _retry() {
@@ -155,7 +169,9 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
           elevation: 0,
           leading: IconButton(
             icon: Icon(
-              Platform.isIOS ? Icons.arrow_back_ios_new_rounded : Icons.arrow_back_rounded,
+              Platform.isIOS
+                  ? Icons.arrow_back_ios_new_rounded
+                  : Icons.arrow_back_rounded,
               color: reportAccentCyan,
               size: Platform.isIOS ? 22 : 24,
             ),
@@ -178,7 +194,8 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
               if (_hasError)
                 _buildErrorState(reportBg, reportAccentCyan)
               else if (_controller != null)
-                WebViewWidget(key: ValueKey<int>(_loadKey), controller: _controller!),
+                WebViewWidget(
+                    key: ValueKey<int>(_loadKey), controller: _controller!),
               if (_isLoading && !_hasError)
                 Container(
                   color: reportBg,
@@ -191,13 +208,15 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
                         height: 36,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(reportAccentCyan),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(reportAccentCyan),
                         ),
                       ),
                       SizedBox(height: 16),
                       Text(
                         '加载年度报告中…',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                        style:
+                            TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                       ),
                     ],
                   ),
@@ -216,11 +235,15 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: reportAccentCyan.withOpacity(0.8)),
+            Icon(Icons.error_outline_rounded,
+                size: 48, color: reportAccentCyan.withOpacity(0.8)),
             const SizedBox(height: 16),
             const Text(
               '加载年度报告出错',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
@@ -230,15 +253,19 @@ class _AnnualReportPageState extends State<AnnualReportPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: reportAccentCyan,
                 foregroundColor: reportBg,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
               onPressed: _openInBrowser,
-              icon: Icon(Icons.open_in_browser_rounded, size: 18, color: reportAccentCyan),
-              label: Text('在浏览器中打开', style: TextStyle(color: reportAccentCyan, fontSize: 15)),
+              icon: Icon(Icons.open_in_browser_rounded,
+                  size: 18, color: reportAccentCyan),
+              label: Text('在浏览器中打开',
+                  style: TextStyle(color: reportAccentCyan, fontSize: 15)),
             ),
           ],
         ),

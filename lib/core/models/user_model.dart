@@ -7,6 +7,7 @@ class UserModel {
   final int score;
   final String identity;
   final String intro;
+  final String customTitle;
   final bool emailPush;
 
   const UserModel({
@@ -18,6 +19,7 @@ class UserModel {
     required this.score,
     required this.identity,
     required this.intro,
+    this.customTitle = '',
     this.emailPush = false,
   });
 
@@ -31,6 +33,7 @@ class UserModel {
       score: 0,
       identity: '',
       intro: '',
+      customTitle: '',
       emailPush: false,
     );
   }
@@ -81,6 +84,7 @@ class UserModel {
       score: _readInt(['score', 'Score']),
       identity: _readString(['identity', 'Identity']),
       intro: _readString(['intro', 'Intro']),
+      customTitle: _readString(['customTitle', 'custom_title', 'CustomTitle']),
       emailPush: _readBool(['emailpush', 'emailPush', 'EmailPush']),
     );
   }
@@ -94,6 +98,7 @@ class UserModel {
     int? score,
     String? identity,
     String? intro,
+    String? customTitle,
     bool? emailPush,
   }) {
     return UserModel(
@@ -105,6 +110,7 @@ class UserModel {
       score: score ?? this.score,
       identity: identity ?? this.identity,
       intro: intro ?? this.intro,
+      customTitle: customTitle ?? this.customTitle,
       emailPush: emailPush ?? this.emailPush,
     );
   }
@@ -119,6 +125,7 @@ class UserModel {
       'Score': score,
       'Identity': identity,
       'Intro': intro,
+      'customTitle': customTitle,
       'emailpush': emailPush,
     };
   }

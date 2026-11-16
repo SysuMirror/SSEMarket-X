@@ -60,7 +60,7 @@ class RatingCard extends StatelessWidget {
 
   Widget _buildEmbeddedRating(BuildContext context) {
     final totalRatings = _getTotalRatings();
-    
+
     return Row(
       children: [
         // Rating Capsule
@@ -98,9 +98,9 @@ class RatingCard extends StatelessWidget {
             color: context.textSecondaryColor,
           ),
         ),
-        
+
         const Spacer(), // Push partition to the right
-        
+
         // Partition info
         if (post.partition.isNotEmpty && !hidePartition)
           Container(
@@ -123,7 +123,7 @@ class RatingCard extends StatelessWidget {
 
   Widget _buildRatingBadge(BuildContext context) {
     final totalRatings = _getTotalRatings();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(

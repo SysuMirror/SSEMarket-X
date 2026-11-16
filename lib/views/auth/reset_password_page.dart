@@ -37,7 +37,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   // Step 3
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -59,7 +60,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     super.dispose();
   }
 
-
   void _showMessage(String message) {
     SnackBarHelper.show(context, message);
   }
@@ -74,14 +74,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final hasUpperCase = password.contains(RegExp(r'[A-Z]'));
     final hasLowerCase = password.contains(RegExp(r'[a-z]'));
     final hasDigit = password.contains(RegExp(r'[0-9]'));
-    final hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~]'));
-    
+    final hasSpecialChar =
+        password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~]'));
+
     int typeCount = 0;
     if (hasUpperCase) typeCount++;
     if (hasLowerCase) typeCount++;
     if (hasDigit) typeCount++;
     if (hasSpecialChar) typeCount++;
-    
+
     return typeCount >= 3;
   }
 
@@ -106,7 +107,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       _isLoading = true;
     });
 
-    final result = await widget.apiService.sendCode(_emailController.text.trim(), 1); // 1: Reset Password
+    final result = await widget.apiService
+        .sendCode(_emailController.text.trim(), 1); // 1: Reset Password
 
     if (mounted) {
       setState(() {
@@ -198,7 +200,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +353,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-
   Widget _buildStep1() {
     return Column(
       children: [
@@ -368,7 +368,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _emailController.text.trim().isNotEmpty ? _sendCode : null,
+            onPressed:
+                _emailController.text.trim().isNotEmpty ? _sendCode : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
@@ -467,13 +468,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               child: SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _valiCodeController.text.isNotEmpty ? _verifyCode : null,
+                  onPressed:
+                      _valiCodeController.text.isNotEmpty ? _verifyCode : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-              disabledForegroundColor: Colors.white.withOpacity(0.6),
-              foregroundColor: Colors.white,
-              elevation: 0,
+                    disabledForegroundColor: Colors.white.withOpacity(0.6),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -490,7 +492,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       ],
     );
   }
-
 
   Widget _buildStep3() {
     return Column(
@@ -560,9 +561,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-              disabledForegroundColor: Colors.white.withOpacity(0.6),
-              foregroundColor: Colors.white,
-              elevation: 0,
+                    disabledForegroundColor: Colors.white.withOpacity(0.6),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -610,12 +611,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             style: TextStyle(color: context.textPrimaryColor, fontSize: 15),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: context.textTertiaryColor, fontSize: 15),
+              hintStyle:
+                  TextStyle(color: context.textTertiaryColor, fontSize: 15),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12),
                 child: Icon(icon, color: context.textTertiaryColor, size: 20),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
               filled: true,
               fillColor: context.inputFillColor,
               border: OutlineInputBorder(
@@ -628,7 +631,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             ),
@@ -666,24 +670,30 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             style: TextStyle(color: context.textPrimaryColor, fontSize: 15),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: context.textTertiaryColor, fontSize: 15),
+              hintStyle:
+                  TextStyle(color: context.textTertiaryColor, fontSize: 15),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12),
-                child: Icon(Icons.lock_outline, color: context.textTertiaryColor, size: 20),
+                child: Icon(Icons.lock_outline,
+                    color: context.textTertiaryColor, size: 20),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
               suffixIcon: Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: IconButton(
                   icon: Icon(
-                    obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    obscureText
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                     color: context.textTertiaryColor,
                     size: 20,
                   ),
                   onPressed: onToggleObscure,
                 ),
               ),
-              suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              suffixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
               filled: true,
               fillColor: context.inputFillColor,
               border: OutlineInputBorder(
@@ -696,7 +706,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             ),

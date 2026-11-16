@@ -181,9 +181,18 @@ class _MarkdownHelpPageState extends State<MarkdownHelpPage> {
               data: item.example,
               styleSheet: getAdaptiveMarkdownStyleSheet(context).copyWith(
                 p: TextStyle(fontSize: 14, color: context.textPrimaryColor),
-                h1: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
-                h2: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
-                h3: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
+                h1: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor),
+                h2: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor),
+                h3: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor),
                 code: TextStyle(
                   fontSize: 12,
                   backgroundColor: context.backgroundColor,
@@ -225,7 +234,8 @@ class _MarkdownHelpPageState extends State<MarkdownHelpPage> {
                   setState(() {});
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: context.backgroundColor,
                     borderRadius: BorderRadius.circular(4),
@@ -247,7 +257,8 @@ class _MarkdownHelpPageState extends State<MarkdownHelpPage> {
                   });
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: context.backgroundColor,
                     borderRadius: BorderRadius.circular(4),
@@ -285,8 +296,10 @@ class _MarkdownHelpPageState extends State<MarkdownHelpPage> {
                     )
                   : MarkdownBody(
                       data: _practiceController.text,
-                      styleSheet: getAdaptiveMarkdownStyleSheet(context).copyWith(
-                        p: TextStyle(fontSize: 14, color: context.textPrimaryColor),
+                      styleSheet:
+                          getAdaptiveMarkdownStyleSheet(context).copyWith(
+                        p: TextStyle(
+                            fontSize: 14, color: context.textPrimaryColor),
                       ),
                     ),
             )

@@ -54,11 +54,11 @@ class WebSocketService {
   final _relevantUsersController = StreamController<List<dynamic>>.broadcast();
   final _contactsController = StreamController<List<ChatContact>>.broadcast();
   final _unreadCountController = StreamController<int>.broadcast();
-  
+
   // 本地缓存联系人列表
   final List<ChatContact> _contacts = [];
   int _totalUnreadCount = 0;
-  
+
   Stream<dynamic> get messages => _messageController.stream;
   Stream<List<dynamic>> get relevantUsers => _relevantUsersController.stream;
   Stream<List<ChatContact>> get contacts => _contactsController.stream;
@@ -76,12 +76,14 @@ class WebSocketService {
     // For now, if channel exists, assume connected.
     if (_channel != null) return;
 
-    final uri = Uri.parse('wss://ssemarket.cn/websocket/auth/chat?token=$token');
-    
+    final uri =
+        Uri.parse('wss://ssemarket.cn/websocket/auth/chat?token=$token');
+
     try {
-      print('Connecting to WebSocket: $uri');
+      // 不要打印完整 URI：query 里带 access token。
+      print('Connecting to WebSocket: ${uri.scheme}://${uri.host}${uri.path}');
       _channel = WebSocketChannel.connect(uri);
-      
+
       _channel!.stream.listen(
         (data) {
           try {
@@ -115,7 +117,6 @@ class WebSocketService {
 
       // Start heartbeat
       _startPing(user.userId);
-      
     } catch (e) {
       print('WebSocket connection failed: $e');
       _closeConnection();
@@ -153,13 +154,14 @@ class WebSocketService {
     });
   }
 
-  bool sendMessage(int targetUserId, String content, {bool isAnonymous = false}) {
+  bool sendMessage(int targetUserId, String content,
+      {bool isAnonymous = false}) {
     final user = StorageService().user;
     if (_channel == null || user == null) {
       // Try to connect if not connected
       if (StorageService().isLoggedIn) {
         connect();
-        // We might fail this send, but next attempt might work. 
+        // We might fail this send, but next attempt might work.
         // Or we can wait? For simplicity, return false if not connected immediately.
         // If connect() is synchronous in setting _channel (it is), we can try again?
         if (_channel == null) return false;
@@ -176,10 +178,10 @@ class WebSocketService {
         'isAnonymous': isAnonymous,
       };
       _channel!.sink.add(jsonEncode(message));
-      
+
       // 更新本地联系人的最新消息
       _updateContactLastMessage(targetUserId, content, DateTime.now());
-      
+
       return true;
     } catch (e) {
       print('Send message failed: $e');
@@ -190,11 +192,12 @@ class WebSocketService {
   void _processRelevantUsers(List<dynamic> users) {
     _contacts.clear();
     _totalUnreadCount = 0;
-    
+
     for (final userData in users) {
       if (userData is Map) {
         try {
-          final contact = ChatContact.fromJson(Map<String, dynamic>.from(userData));
+          final contact =
+              ChatContact.fromJson(Map<String, dynamic>.from(userData));
           _contacts.add(contact);
           _totalUnreadCount += contact.unreadCount;
         } catch (e) {
@@ -202,7 +205,7 @@ class WebSocketService {
         }
       }
     }
-    
+
     _contactsController.add(List.from(_contacts));
     _unreadCountController.add(_totalUnreadCount);
   }
@@ -212,27 +215,27 @@ class WebSocketService {
     final content = messageData['content'] as String?;
     final createdAt = messageData['createdAt'] as String?;
     final currentUser = StorageService().user;
-    
+
     if (senderId == null || content == null || currentUser == null) return;
-    
+
     // 只处理发给我的消息
     final targetId = messageData['targetUserID'] as int?;
     if (targetId != currentUser.userId) return;
-    
+
     // 更新联系人的最新消息和未读数
     final contactIndex = _contacts.indexWhere((c) => c.userId == senderId);
     if (contactIndex != -1) {
       _contacts[contactIndex].lastMessage = content;
-      _contacts[contactIndex].lastMessageTime = createdAt != null 
+      _contacts[contactIndex].lastMessageTime = createdAt != null
           ? DateTime.tryParse(createdAt) ?? DateTime.now()
           : DateTime.now();
       _contacts[contactIndex].unreadCount++;
       _totalUnreadCount++;
-      
+
       // 将该联系人移到列表顶部
       final contact = _contacts.removeAt(contactIndex);
       _contacts.insert(0, contact);
-      
+
       _contactsController.add(List.from(_contacts));
       _unreadCountController.add(_totalUnreadCount);
     }
@@ -254,7 +257,7 @@ class WebSocketService {
       _totalUnreadCount -= _contacts[contactIndex].unreadCount;
       if (_totalUnreadCount < 0) _totalUnreadCount = 0;
       _contacts[contactIndex].unreadCount = 0;
-      
+
       _contactsController.add(List.from(_contacts));
       _unreadCountController.add(_totalUnreadCount);
     }

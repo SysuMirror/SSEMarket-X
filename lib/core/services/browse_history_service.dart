@@ -5,9 +5,9 @@ import 'package:sse_market_x/core/models/product_model.dart';
 
 /// 浏览历史项类型
 enum BrowseHistoryItemType {
-  post,    // 普通帖子
-  course,  // 课程帖子
-  rating,  // 评分帖子
+  post, // 普通帖子
+  course, // 课程帖子
+  rating, // 评分帖子
   product, // 闲置商品
 }
 
@@ -94,7 +94,8 @@ class BrowseHistoryItem {
 
 /// 浏览历史服务 - 纯本地功能
 class BrowseHistoryService {
-  static final BrowseHistoryService _instance = BrowseHistoryService._internal();
+  static final BrowseHistoryService _instance =
+      BrowseHistoryService._internal();
   factory BrowseHistoryService() => _instance;
   BrowseHistoryService._internal();
 
@@ -111,9 +112,10 @@ class BrowseHistoryService {
   }
 
   /// 添加帖子浏览记录（自动根据 partition 判断类型）
-  Future<void> addPostHistory(PostModel post, {bool isRating = false, bool isCourse = false}) async {
+  Future<void> addPostHistory(PostModel post,
+      {bool isRating = false, bool isCourse = false}) async {
     BrowseHistoryItemType type;
-    
+
     // 根据 partition 自动判断类型
     // 课程交流 -> 课程分区
     // 打分 -> 打分分区
@@ -150,7 +152,7 @@ class BrowseHistoryService {
       'IsSold': product.isSold,
       'IsAnonymous': product.isAnonymous,
     };
-    
+
     final item = BrowseHistoryItem(
       id: productId,
       type: BrowseHistoryItemType.product,
@@ -164,37 +166,39 @@ class BrowseHistoryService {
   /// 内部方法：添加历史项
   Future<void> _addHistoryItem(BrowseHistoryItem item) async {
     await init();
-    
+
     final historyList = await getHistory();
-    
+
     // 移除已存在的相同项（避免重复）
     historyList.removeWhere((h) => h.id == item.id && h.type == item.type);
-    
+
     // 添加到列表开头
     historyList.insert(0, item);
-    
+
     // 限制最大数量
     if (historyList.length > _maxHistoryCount) {
       historyList.removeRange(_maxHistoryCount, historyList.length);
     }
-    
+
     // 保存到本地
     await _saveHistory(historyList);
   }
 
   /// 获取浏览历史
-  Future<List<BrowseHistoryItem>> getHistory({BrowseHistoryItemType? type}) async {
+  Future<List<BrowseHistoryItem>> getHistory(
+      {BrowseHistoryItemType? type}) async {
     await init();
-    
+
     final jsonString = _prefs.getString(_keyBrowseHistory);
     if (jsonString == null || jsonString.isEmpty) {
       return [];
     }
-    
+
     try {
       final List<dynamic> jsonList = jsonDecode(jsonString);
-      final items = jsonList.map((json) => BrowseHistoryItem.fromJson(json)).toList();
-      
+      final items =
+          jsonList.map((json) => BrowseHistoryItem.fromJson(json)).toList();
+
       if (type != null) {
         return items.where((item) => item.type == type).toList();
       }
@@ -207,7 +211,7 @@ class BrowseHistoryService {
   /// 清空浏览历史
   Future<void> clearHistory({BrowseHistoryItemType? type}) async {
     await init();
-    
+
     if (type == null) {
       await _prefs.remove(_keyBrowseHistory);
     } else {
@@ -220,7 +224,7 @@ class BrowseHistoryService {
   /// 删除单条记录
   Future<void> removeHistory(int id, BrowseHistoryItemType type) async {
     await init();
-    
+
     final historyList = await getHistory();
     historyList.removeWhere((item) => item.id == id && item.type == type);
     await _saveHistory(historyList);

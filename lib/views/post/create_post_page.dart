@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sse_market_x/core/api/api_service.dart';
 import 'package:sse_market_x/core/models/user_model.dart';
+import 'package:sse_market_x/core/models/music_model.dart';
+import 'package:sse_market_x/core/models/staff_alias_model.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/views/post/markdown_help_page.dart';
 import 'package:sse_market_x/shared/components/cards/post_preview_card.dart';
@@ -12,6 +14,7 @@ import 'package:sse_market_x/shared/components/markdown/latex_markdown.dart';
 import 'package:sse_market_x/shared/components/media/image_editor.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/components/inputs/toolbar_icon_button.dart';
+import 'package:sse_market_x/shared/components/inputs/emoji_picker.dart';
 import 'package:sse_market_x/shared/components/overlays/custom_dialog.dart';
 import 'package:sse_market_x/shared/components/inputs/custom_dropdown.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
@@ -23,6 +26,7 @@ class CreatePostPage extends StatefulWidget {
   final bool isActive;
   final Function(String title, String content)? onPreviewUpdate;
   final VoidCallback? onPostSuccess;
+
   /// 是否从打分页面进入，用于默认选中“打分”分区并跳过草稿加载
   final bool fromRatingPage;
 
@@ -50,34 +54,44 @@ class _CreatePostPageState extends State<CreatePostPage> {
   String _selectedPartition = '主页';
   Timer? _debounce;
   bool _draftLoaded = false;
-  
+
+  // 打分帖子：新版 /auth/rating/post/create 需要 categoryID
+  List<Map<String, dynamic>> _ratingCategories = [];
+  int? _selectedCategoryID;
+  bool _loadingCategories = false;
+
   final ImagePicker _imagePicker = ImagePicker();
 
   UserModel _user = UserModel.empty();
+  List<StaffAliasModel> _staffAliases = const <StaffAliasModel>[];
 
   /// 显示名称分区列表
   final List<String> _displayPartitions = [
     '主页',
-    '院务',
-    '课程',
-    '学习解惑',
-    '打听求助',
-    '随想随记',
-    '求职招募',
-    '打分',
+    '学习交流',
+    '生活日常',
+    '社团活动',
+    '实习就业',
+    '期末资料',
+    '宿舍生活',
+    '技术分享',
+    '课程专区',
+    '组团捞人',
     '其他',
   ];
 
-  /// 显示名称 -> API 名称
+  /// 显示名称 -> API 名称（当前 content partitions 与 API 同名）
   final Map<String, String> _displayToApiPartition = {
     '主页': '主页',
-    '院务': '院务',
-    '课程': '课程交流',
-    '学习解惑': '学习交流',
-    '打听求助': '打听求助',
-    '随想随记': '日常吐槽',
-    '求职招募': '求职招募',
-    '打分': '打分',
+    '学习交流': '学习交流',
+    '生活日常': '生活日常',
+    '社团活动': '社团活动',
+    '实习就业': '实习就业',
+    '期末资料': '期末资料',
+    '宿舍生活': '宿舍生活',
+    '技术分享': '技术分享',
+    '课程专区': '课程专区',
+    '组团捞人': '组团捞人',
     '其他': '其他',
   };
 
@@ -85,6 +99,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   void initState() {
     super.initState();
     _loadUser();
+    _loadStaffAliases();
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
@@ -93,6 +108,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     if (widget.fromRatingPage) {
       _selectedPartition = '打分';
       _draftLoaded = true; // 标记为已处理，避免后续 didUpdateWidget 再次加载
+      _loadRatingCategories();
     } else {
       // 仅在普通入口且已激活时加载草稿
       if (widget.isActive) {
@@ -140,7 +156,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         _user = cachedUser;
       });
     }
-    
+
     // 然后从 API 获取最新信息（包括详细的 score）
     try {
       final basic = await widget.apiService.getUserInfo();
@@ -148,7 +164,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       // 获取详细信息（包含 score 和 intro）
       if (basic.phone.isNotEmpty) {
         final d = await widget.apiService.getDetailedUserInfo(basic.phone);
-        detailed = basic.copyWith(score: d.score, intro: d.intro);
+        detailed = basic.copyWith(score: d.score, intro: d.intro, customTitle: d.customTitle);
       }
       if (mounted) {
         setState(() {
@@ -163,7 +179,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   void _insertMarkdown(String prefix, String suffix, {String? placeholder}) {
     final text = _contentController.text;
     final selection = _contentController.selection;
-    
+
     if (selection.start < 0) {
       final insertText = placeholder ?? '';
       final newText = text + prefix + insertText + suffix;
@@ -175,18 +191,24 @@ class _CreatePostPageState extends State<CreatePostPage> {
           extentOffset: text.length + prefix.length + insertText.length,
         );
       } else {
-        _contentController.selection = TextSelection.collapsed(offset: newText.length - suffix.length);
+        _contentController.selection =
+            TextSelection.collapsed(offset: newText.length - suffix.length);
       }
       return;
     }
 
     final start = selection.start;
     final end = selection.end;
-    
+
     final selectedText = text.substring(start, end);
-    final insertText = selectedText.isNotEmpty ? selectedText : (placeholder ?? '');
-    final newText = text.substring(0, start) + prefix + insertText + suffix + text.substring(end);
-    
+    final insertText =
+        selectedText.isNotEmpty ? selectedText : (placeholder ?? '');
+    final newText = text.substring(0, start) +
+        prefix +
+        insertText +
+        suffix +
+        text.substring(end);
+
     _contentController.text = newText;
     if (insertText.isNotEmpty) {
       _contentController.selection = TextSelection(
@@ -194,9 +216,103 @@ class _CreatePostPageState extends State<CreatePostPage> {
         extentOffset: start + prefix.length + insertText.length,
       );
     } else {
-      _contentController.selection = TextSelection.collapsed(offset: start + prefix.length);
+      _contentController.selection =
+          TextSelection.collapsed(offset: start + prefix.length);
     }
     _onTextChanged();
+  }
+
+  Future<void> _loadStaffAliases() async {
+    final aliases = await widget.apiService.getStaffAliases();
+    if (mounted && aliases.isNotEmpty) {
+      setState(() => _staffAliases = aliases);
+    }
+  }
+
+  /// 在光标处插入原始文本（表情、@、音乐标记等）。
+  void _insertRaw(String insert) {
+    final text = _contentController.text;
+    final selection = _contentController.selection;
+    final start = selection.start >= 0 ? selection.start : text.length;
+    final end = selection.end >= 0 ? selection.end : text.length;
+    final newText = text.substring(0, start) + insert + text.substring(end);
+    _contentController.text = newText;
+    _contentController.selection =
+        TextSelection.collapsed(offset: start + insert.length);
+    _onTextChanged();
+  }
+
+  Future<void> _showStaffPicker() async {
+    final alias = await showModalBottomSheet<StaffAliasModel>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('要 @ 哪位开发人员？',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+            for (final item in _staffAliases)
+              ListTile(
+                leading: const CircleAvatar(
+                  radius: 18,
+                  child: Icon(Icons.alternate_email, size: 18),
+                ),
+                title: Text(item.title.isNotEmpty ? item.title : item.alias),
+                subtitle: Text('@${item.alias}'),
+                onTap: () => Navigator.pop(context, item),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (alias != null) _insertRaw('@${alias.alias} ');
+  }
+
+  Future<void> _showEmojiPicker() async {
+    final emoji = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: EmojiPicker(
+          onEmojiSelected: (e) => Navigator.pop(context, e),
+          onClose: () => Navigator.pop(context),
+        ),
+      ),
+    );
+    if (emoji != null && emoji.isNotEmpty) _insertRaw(emoji);
+  }
+
+  Future<void> _showMusicPicker() async {
+    final music = await showModalBottomSheet<MusicModel>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _MusicPickerSheet(apiService: widget.apiService),
+    );
+    if (music != null) {
+      _insertRaw('\n::music ${music.musicID}::\n');
+    }
+  }
+
+  Future<void> _loadRatingCategories() async {
+    setState(() => _loadingCategories = true);
+    final categories = await widget.apiService.getRatingCategories();
+    if (!mounted) return;
+    setState(() {
+      _ratingCategories = categories;
+      _loadingCategories = false;
+      if (_ratingCategories.isNotEmpty) {
+        _selectedCategoryID ??= int.tryParse(
+          (_ratingCategories.first['categoryID'] ??
+                  _ratingCategories.first['CategoryID'] ??
+                  '')
+              .toString(),
+        );
+      }
+    });
   }
 
   Future<void> _onSubmit() async {
@@ -229,23 +345,38 @@ class _CreatePostPageState extends State<CreatePostPage> {
       return;
     }
 
+    if (widget.fromRatingPage && _selectedCategoryID == null) {
+      _showMessage('请选择打分分类');
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      final apiPartition = _displayToApiPartition[_selectedPartition] ?? '主页';
-      final success = await widget.apiService.createPost(
-        title,
-        content,
-        apiPartition,
-        _user.phone,
-      );
+      bool success;
+      if (widget.fromRatingPage) {
+        final ratingPostID = await widget.apiService.createRatingPost(
+          categoryID: _selectedCategoryID!,
+          title: title,
+          content: content,
+        );
+        success = ratingPostID != null;
+      } else {
+        final apiPartition = _displayToApiPartition[_selectedPartition] ?? '主页';
+        success = await widget.apiService.createPost(
+          title,
+          content,
+          apiPartition,
+          _user.phone,
+        );
+      }
 
       if (success && mounted) {
         _showMessage('发布成功');
         _clearDraft();
-        
+
         if (widget.isEmbedded) {
           if (widget.onPostSuccess != null) {
             widget.onPostSuccess!();
@@ -303,13 +434,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
         maxWidth: 2048,
         maxHeight: 2048,
       );
-      
+
       if (image == null) return;
-      
+
       final imageBytes = await image.readAsBytes();
-      
+
       if (!mounted) return;
-      
+
       // 打开图片编辑器
       final editedBytes = await ImageEditorPage.show(
         context,
@@ -317,16 +448,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
         enableCrop: true,
         enableAdjust: true,
       );
-      
+
       if (editedBytes == null || !mounted) return;
-      
+
       setState(() {
         _isUploading = true;
       });
-      
+
       final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.png';
-      final imageUrl = await widget.apiService.uploadPhoto(editedBytes, fileName);
-      
+      final imageUrl =
+          await widget.apiService.uploadPhoto(editedBytes, fileName);
+
       if (imageUrl != null && mounted) {
         // URL encode the image URL to handle special characters
         final encodedUrl = Uri.encodeFull(imageUrl);
@@ -334,18 +466,20 @@ class _CreatePostPageState extends State<CreatePostPage> {
         final markdownImage = '![$fileName]($encodedUrl)';
         final currentText = _contentController.text;
         final selection = _contentController.selection;
-        final cursorPos = selection.baseOffset >= 0 ? selection.baseOffset : currentText.length;
-        
-        final newText = currentText.substring(0, cursorPos) + 
-                       markdownImage + 
-                       currentText.substring(cursorPos);
-        
+        final cursorPos = selection.baseOffset >= 0
+            ? selection.baseOffset
+            : currentText.length;
+
+        final newText = currentText.substring(0, cursorPos) +
+            markdownImage +
+            currentText.substring(cursorPos);
+
         _contentController.text = newText;
         // 移动光标到插入内容之后
         _contentController.selection = TextSelection.collapsed(
           offset: cursorPos + markdownImage.length,
         );
-        
+
         _showMessage('图片上传成功');
       } else if (mounted) {
         _showMessage('图片上传失败');
@@ -407,63 +541,70 @@ class _CreatePostPageState extends State<CreatePostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.backgroundColor,
-      appBar: widget.isEmbedded ? null : AppBar(
-        backgroundColor: context.surfaceColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: context.textPrimaryColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          _showPreview ? '预览' : '新建帖子',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: context.textPrimaryColor,
-          ),
-        ),
-        centerTitle: false,
-        titleSpacing: 0,
-        actions: [
-          // Markdown 帮助
-          IconButton(
-            icon: Icon(Icons.help_outline, color: context.textSecondaryColor),
-            tooltip: 'Markdown帮助',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MarkdownHelpPage(),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              backgroundColor: context.surfaceColor,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back, color: context.textPrimaryColor),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              title: Text(
+                _showPreview ? '预览' : '新建帖子',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: context.textPrimaryColor,
                 ),
-              );
-            },
-          ),
-          // 预览按钮
-          if (widget.onPreviewUpdate == null)
-            IconButton(
-              icon: Icon(
-                _showPreview ? Icons.edit : Icons.visibility,
-                color: _showPreview ? AppColors.primary : context.textSecondaryColor,
               ),
-              tooltip: _showPreview ? '编辑' : '预览',
-              onPressed: () {
-                setState(() {
-                  _showPreview = !_showPreview;
-                });
-              },
+              centerTitle: false,
+              titleSpacing: 0,
+              actions: [
+                // Markdown 帮助
+                IconButton(
+                  icon: Icon(Icons.help_outline,
+                      color: context.textSecondaryColor),
+                  tooltip: 'Markdown帮助',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MarkdownHelpPage(),
+                      ),
+                    );
+                  },
+                ),
+                // 预览按钮
+                if (widget.onPreviewUpdate == null)
+                  IconButton(
+                    icon: Icon(
+                      _showPreview ? Icons.edit : Icons.visibility,
+                      color: _showPreview
+                          ? AppColors.primary
+                          : context.textSecondaryColor,
+                    ),
+                    tooltip: _showPreview ? '编辑' : '预览',
+                    onPressed: () {
+                      setState(() {
+                        _showPreview = !_showPreview;
+                      });
+                    },
+                  ),
+                TextButton(
+                  onPressed: _isSubmitting ? null : _onSubmit,
+                  child: Text(
+                    '提交',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _isSubmitting
+                          ? context.textSecondaryColor
+                          : AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
-          TextButton(
-            onPressed: _isSubmitting ? null : _onSubmit,
-            child: Text(
-              '提交',
-              style: TextStyle(
-                fontSize: 16,
-                color: _isSubmitting ? context.textSecondaryColor : AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
           // Custom header for embedded mode
@@ -485,7 +626,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                   // Markdown 帮助
                   IconButton(
-                    icon: Icon(Icons.help_outline, color: context.textSecondaryColor),
+                    icon: Icon(Icons.help_outline,
+                        color: context.textSecondaryColor),
                     tooltip: 'Markdown帮助',
                     onPressed: () {
                       Navigator.of(context).push(
@@ -500,7 +642,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     IconButton(
                       icon: Icon(
                         _showPreview ? Icons.edit : Icons.visibility,
-                        color: _showPreview ? AppColors.primary : context.textSecondaryColor,
+                        color: _showPreview
+                            ? AppColors.primary
+                            : context.textSecondaryColor,
                       ),
                       tooltip: _showPreview ? '编辑' : '预览',
                       onPressed: () {
@@ -515,7 +659,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       '提交',
                       style: TextStyle(
                         fontSize: 16,
-                        color: _isSubmitting ? context.textSecondaryColor : AppColors.primary,
+                        color: _isSubmitting
+                            ? context.textSecondaryColor
+                            : AppColors.primary,
                       ),
                     ),
                   ),
@@ -539,7 +685,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     if (_showPreview) {
       return _buildFullPreview();
     }
-    
+
     // 编辑模式：显示输入表单
     return Container(
       color: context.surfaceColor,
@@ -549,8 +695,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
           _buildTitleInput(),
           // 虚线分隔线
           _buildDashedDivider(),
-          // 分区选择
-          _buildPartitionSelector(),
+          // 分区 / 打分分类选择
+          if (widget.fromRatingPage)
+            _buildCategorySelector()
+          else
+            _buildPartitionSelector(),
           // 虚线分隔线
           _buildDashedDivider(),
           // 内容输入区
@@ -618,10 +767,82 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
+  /// 打分分类选择器（新版打分接口需要 categoryID）
+  Widget _buildCategorySelector() {
+    final ids = _ratingCategories
+        .map((c) => int.tryParse(
+              (c['categoryID'] ?? c['CategoryID'] ?? '').toString(),
+            ))
+        .whereType<int>()
+        .toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              '分类',
+              style: TextStyle(
+                fontSize: 15,
+                color: context.textSecondaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: _loadingCategories
+                  ? const Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : ids.isEmpty
+                      ? Text(
+                          '暂无打分分类',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: context.textTertiaryColor,
+                          ),
+                        )
+                      : CustomDropdown<int>(
+                          value: _selectedCategoryID ?? ids.first,
+                          items: ids,
+                          itemBuilder: (id) {
+                            final cat = _ratingCategories.firstWhere(
+                              (c) =>
+                                  (c['categoryID'] ?? c['CategoryID'])
+                                      .toString() ==
+                                  id.toString(),
+                              orElse: () => <String, dynamic>{},
+                            );
+                            return (cat['name'] ?? cat['Name'] ?? id)
+                                .toString();
+                          },
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedCategoryID = value);
+                              _onTextChanged();
+                            }
+                          },
+                        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 分区选择器
   Widget _buildPartitionSelector() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2), // 与标题区域一致
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 2), // 与标题区域一致
       child: Row(
         children: [
           Padding(
@@ -665,10 +886,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         // 工具栏
         _buildToolbar(),
         // 内容输入/预览
-        if (_showPreview)
-          _buildPreview()
-        else
-          _buildEditor(),
+        if (_showPreview) _buildPreview() else _buildEditor(),
       ],
     );
   }
@@ -688,22 +906,26 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 ToolbarIconButton(
                   icon: Icons.title,
                   tooltip: '标题：## 二级标题',
-                  onPressed: () => _insertMarkdown('\n## ', '\n', placeholder: '二级标题'),
+                  onPressed: () =>
+                      _insertMarkdown('\n## ', '\n', placeholder: '二级标题'),
                 ),
                 ToolbarIconButton(
                   icon: Icons.format_bold,
                   tooltip: '粗体：**粗体文字**',
-                  onPressed: () => _insertMarkdown('**', '**', placeholder: '粗体文字'),
+                  onPressed: () =>
+                      _insertMarkdown('**', '**', placeholder: '粗体文字'),
                 ),
                 ToolbarIconButton(
                   icon: Icons.format_italic,
                   tooltip: '斜体：*斜体文字*',
-                  onPressed: () => _insertMarkdown('*', '*', placeholder: '斜体文字'),
+                  onPressed: () =>
+                      _insertMarkdown('*', '*', placeholder: '斜体文字'),
                 ),
                 ToolbarIconButton(
                   icon: Icons.format_list_bulleted,
                   tooltip: '无序列表：- 列表项',
-                  onPressed: () => _insertMarkdown('\n- ', '\n', placeholder: '列表项'),
+                  onPressed: () =>
+                      _insertMarkdown('\n- ', '\n', placeholder: '列表项'),
                 ),
                 ToolbarIconButton(
                   icon: Icons.code,
@@ -713,17 +935,39 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 ToolbarIconButton(
                   icon: Icons.format_quote,
                   tooltip: '引用：> 引用内容',
-                  onPressed: () => _insertMarkdown('\n> ', '\n', placeholder: '引用内容'),
+                  onPressed: () =>
+                      _insertMarkdown('\n> ', '\n', placeholder: '引用内容'),
                 ),
               ],
             ],
           ),
-          // 右侧：上传图片按钮
+          // 右侧：表情 / 音乐 / 图片 / @职位（与 web 编辑器对齐）
           if (!_showPreview)
-            ToolbarIconButton(
-              icon: _isUploading ? Icons.hourglass_empty : Icons.image,
-              tooltip: '上传图片',
-              onPressed: _isUploading ? null : _pickAndUploadImage,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ToolbarIconButton(
+                  icon: Icons.emoji_emotions_outlined,
+                  tooltip: '插入表情',
+                  onPressed: _showEmojiPicker,
+                ),
+                ToolbarIconButton(
+                  icon: Icons.queue_music,
+                  tooltip: '插入音乐',
+                  onPressed: _showMusicPicker,
+                ),
+                if (_staffAliases.isNotEmpty)
+                  ToolbarIconButton(
+                    icon: Icons.alternate_email,
+                    tooltip: '@ 开发人员',
+                    onPressed: _showStaffPicker,
+                  ),
+                ToolbarIconButton(
+                  icon: _isUploading ? Icons.hourglass_empty : Icons.image,
+                  tooltip: '上传图片',
+                  onPressed: _isUploading ? null : _pickAndUploadImage,
+                ),
+              ],
             ),
         ],
       ),
@@ -785,12 +1029,121 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 }
 
+/// 发帖页「插入音乐」选歌面板（对齐 web MusicPickerDialog 的“我的音乐”部分）。
+class _MusicPickerSheet extends StatefulWidget {
+  final ApiService apiService;
+
+  const _MusicPickerSheet({required this.apiService});
+
+  @override
+  State<_MusicPickerSheet> createState() => _MusicPickerSheetState();
+}
+
+class _MusicPickerSheetState extends State<_MusicPickerSheet> {
+  late Future<List<MusicModel>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.apiService.getMusicList(mine: true, limit: 50);
+  }
+
+  String _duration(int seconds) {
+    if (seconds <= 0) return '';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.6,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Row(
+                children: [
+                  Text('插入音乐',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: context.textPrimaryColor)),
+                  const Spacer(),
+                  Text('我上传的音乐',
+                      style: TextStyle(
+                          fontSize: 12, color: context.textSecondaryColor)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder<List<MusicModel>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final list = snapshot.data ?? const <MusicModel>[];
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          '还没有上传过音乐\n可先在网页版「音乐」里上传，再回来插入',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: context.textSecondaryColor),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    itemCount: list.length,
+                    itemBuilder: (context, index) {
+                      final music = list[index];
+                      return ListTile(
+                        leading: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(20),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.music_note,
+                              color: AppColors.primary),
+                        ),
+                        title: Text(music.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          [
+                            if (music.artist.isNotEmpty) music.artist,
+                            _duration(music.durationSec),
+                          ].where((e) => e.isNotEmpty).join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.add_circle_outline),
+                        onTap: () => Navigator.pop(context, music),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 虚线绘制器
 class DashedLinePainter extends CustomPainter {
   final Color color;
-  
+
   DashedLinePainter({this.color = const Color(0xFFE0E0E0)});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -812,5 +1165,6 @@ class DashedLinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DashedLinePainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant DashedLinePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

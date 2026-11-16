@@ -189,7 +189,8 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
           return PostCard(
             post: post,
             onTap: () async {
-              final result = await Navigator.of(context).push<Map<String, dynamic>?>(
+              final result =
+                  await Navigator.of(context).push<Map<String, dynamic>?>(
                 MaterialPageRoute(
                   builder: (_) => PostDetailPage(
                     postId: post.id,

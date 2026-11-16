@@ -24,7 +24,7 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
   CacheCategory? _currentCategory; // null 表示全部
 
   final List<CacheCategory?> _tabs = [null, ...CacheCategory.values];
-  
+
   // Tab 滚动控制
   final ScrollController _tabScrollController = ScrollController();
   final PageController _pageController = PageController();
@@ -68,15 +68,17 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
   void _scrollToTab(CacheCategory? category) {
     final key = _tabKeys[category];
     if (key?.currentContext != null) {
-      final RenderBox renderBox = key!.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox renderBox =
+          key!.currentContext!.findRenderObject() as RenderBox;
       final position = renderBox.localToGlobal(Offset.zero);
       final screenWidth = MediaQuery.of(context).size.width;
       final tabWidth = renderBox.size.width;
-      
+
       // 计算目标滚动位置，使 tab 居中
-      final targetOffset = _tabScrollController.offset + 
-          position.dx - (screenWidth - tabWidth) / 2;
-      
+      final targetOffset = _tabScrollController.offset +
+          position.dx -
+          (screenWidth - tabWidth) / 2;
+
       _tabScrollController.animateTo(
         targetOffset.clamp(0, _tabScrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 300),
@@ -117,7 +119,6 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
     }
   }
 
-
   List<CacheFileInfo> get _displayFiles {
     if (_currentCategory == null) return _cacheFiles;
     return _categorizedFiles[_currentCategory] ?? [];
@@ -137,7 +138,8 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
   void _selectAll() {
     setState(() {
       final currentFiles = _displayFiles;
-      final allSelected = currentFiles.every((f) => _selectedFiles.contains(f.fileName));
+      final allSelected =
+          currentFiles.every((f) => _selectedFiles.contains(f.fileName));
       if (allSelected) {
         for (final f in currentFiles) {
           _selectedFiles.remove(f.fileName);
@@ -218,7 +220,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
 
   int _getCategorySize(CacheCategory? category) {
     if (category == null) return _totalSize;
-    return _categorizedFiles[category]?.fold<int>(0, (sum, f) => sum + f.size) ?? 0;
+    return _categorizedFiles[category]
+            ?.fold<int>(0, (sum, f) => sum + f.size) ??
+        0;
   }
 
   @override
@@ -235,8 +239,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
             _isSelectionMode ? Icons.close : Icons.arrow_back,
             color: context.textPrimaryColor,
           ),
-          onPressed:
-              _isSelectionMode ? _cancelSelection : () => Navigator.pop(context),
+          onPressed: _isSelectionMode
+              ? _cancelSelection
+              : () => Navigator.pop(context),
         ),
         title: Text(
           _isSelectionMode ? '已选择 ${_selectedFiles.length} 项' : '缓存管理',
@@ -277,13 +282,10 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _cacheFiles.isEmpty
-          ? _buildEmptyState()
-          : _buildCacheContent(),
+      body: _cacheFiles.isEmpty ? _buildEmptyState() : _buildCacheContent(),
       bottomNavigationBar: _isSelectionMode ? _buildBottomBar() : null,
     );
   }
-
 
   /// 自定义分类选择器 - 下划线指示器风格
   Widget _buildCategorySelector() {
@@ -302,7 +304,7 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                 : (_categorizedFiles[cat]?.length ?? 0);
             final label = cat?.label ?? '全部';
             final isSelected = _currentCategory == cat;
-            
+
             return _CategoryChip(
               key: _tabKeys[cat],
               label: label,
@@ -363,7 +365,8 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                   ),
                   const Spacer(),
                   Text(
-                    _cacheService.formatCacheSize(_getCategorySize(_currentCategory)),
+                    _cacheService
+                        .formatCacheSize(_getCategorySize(_currentCategory)),
                     style: TextStyle(
                       fontSize: 14,
                       color: context.textSecondaryColor,
@@ -403,10 +406,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
 
   /// 构建指定分类的缓存网格
   Widget _buildCacheGridForCategory(CacheCategory? category) {
-    final files = category == null 
-        ? _cacheFiles 
-        : (_categorizedFiles[category] ?? []);
-    
+    final files =
+        category == null ? _cacheFiles : (_categorizedFiles[category] ?? []);
+
     if (files.isEmpty) {
       return Center(
         child: Text(
@@ -418,7 +420,7 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
         ),
       );
     }
-    
+
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -490,10 +492,12 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : context.surfaceColor,
+                    color:
+                        isSelected ? AppColors.primary : context.surfaceColor,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : context.dividerColor,
+                      color:
+                          isSelected ? AppColors.primary : context.dividerColor,
                       width: 2,
                     ),
                   ),
@@ -641,8 +645,11 @@ class _CategoryChip extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? AppColors.primary : context.textSecondaryColor,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primary
+                          : context.textSecondaryColor,
                     ),
                   ),
                   if (count > 0) ...[

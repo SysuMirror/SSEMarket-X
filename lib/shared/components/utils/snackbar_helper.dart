@@ -8,8 +8,8 @@ class SnackBarHelper {
     Duration? duration,
   }) {
     CustomToast.show(
-      context, 
-      message, 
+      context,
+      message,
       duration: duration ?? const Duration(seconds: 2),
     );
   }

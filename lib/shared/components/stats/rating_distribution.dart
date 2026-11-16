@@ -125,7 +125,9 @@ class RatingDistribution extends StatelessWidget {
                       userRating > 0 ? '$userRating 分' : '点击评分',
                       style: TextStyle(
                         fontSize: 11,
-                        color: userRating > 0 ? AppColors.primary : context.textTertiaryColor,
+                        color: userRating > 0
+                            ? AppColors.primary
+                            : context.textTertiaryColor,
                       ),
                     ),
                   ],
@@ -145,7 +147,8 @@ class RatingDistribution extends StatelessWidget {
     return Column(
       children: List.generate(5, (index) {
         final starLevel = 5 - index;
-        final count = starCounts.length > starLevel - 1 ? starCounts[starLevel - 1] : 0;
+        final count =
+            starCounts.length > starLevel - 1 ? starCounts[starLevel - 1] : 0;
         final percentage = _totalRatings > 0 ? count / _totalRatings : 0.0;
 
         return Padding(

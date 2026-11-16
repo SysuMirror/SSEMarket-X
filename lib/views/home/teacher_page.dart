@@ -460,6 +460,8 @@ class _TeacherPageState extends State<TeacherPage>
       stars: post.stars,
       userRating: post.userRating,
       heat: post.heat,
+      coinCount: post.coinCount,
+      myCoins: post.myCoins,
     );
     BrowseHistoryService().addPostHistory(postWithPartition, isCourse: true);
 

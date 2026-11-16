@@ -46,7 +46,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     _loadMessages();
     _subscribeToMessages();
     _messageController.addListener(_onTextChanged);
-    
+
     // 标记与该用户的对话为已读
     WebSocketService().markAsRead(widget.targetUser.userId);
   }
@@ -92,38 +92,40 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     _messageSubscription = ws.messages.listen((data) {
       if (data is Map) {
         // Check if it's a message
-        if (data.containsKey('chatMsgID') && 
+        if (data.containsKey('chatMsgID') &&
             data.containsKey('content') &&
             data.containsKey('senderUserID')) {
-          
           final senderId = data['senderUserID'];
           final targetId = data['targetUserID'];
-          
+
           // Check if message belongs to this conversation
           final currentUser = StorageService().user;
           if (currentUser == null) return;
 
           bool isRelevant = false;
-          if (senderId == widget.targetUser.userId && targetId == currentUser.userId) {
+          if (senderId == widget.targetUser.userId &&
+              targetId == currentUser.userId) {
             // Message from target user to me
             isRelevant = true;
-          } else if (senderId == currentUser.userId && targetId == widget.targetUser.userId) {
+          } else if (senderId == currentUser.userId &&
+              targetId == widget.targetUser.userId) {
             // Message from me to target user (e.g. sent from another device or echoed back)
             // Usually we add our own messages locally, but if server echoes, we might duplicate.
             // If we rely on local add, we should ignore own messages from stream unless we handle ack.
             // Assuming server pushes new messages from others.
             // But wait, newSSE handles: if (data.senderUserID === current.userID) -> push to history.
-            // So we should handle both. But we already add locally in _sendMessage. 
+            // So we should handle both. But we already add locally in _sendMessage.
             // We should avoid duplicates if server echoes.
             // Let's assume for now we only care about incoming messages from targetUser.
             // If server broadcasts my own message back to me, I need to deduplicate or not add locally?
             // Usually local add is for immediate feedback.
             // Let's filter out my own messages for now to avoid duplication if I already added it.
-            isRelevant = false; 
+            isRelevant = false;
           }
 
           if (isRelevant) {
-            final message = ChatMessageModel.fromJson(data as Map<String, dynamic>);
+            final message =
+                ChatMessageModel.fromJson(data as Map<String, dynamic>);
             if (mounted) {
               setState(() {
                 _messages.add(message);
@@ -182,7 +184,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       widget.targetUser.userId,
       text,
     );
-    
+
     if (success) {
       final currentUser = StorageService().user;
       if (currentUser != null) {
@@ -195,7 +197,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           createdAt: DateTime.now().toIso8601String(),
           isAnonymous: false,
         );
-        
+
         setState(() {
           _messages.add(newMessage);
           _messageController.clear();
@@ -252,19 +254,21 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     ),
                   )
                 : ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          // reverse 模式下，index 0 是最新消息，需要反转索引
-                          final reversedIndex = _messages.length - 1 - index;
-                          final message = _messages[reversedIndex];
-                          final isMe = message.senderUserId == StorageService().user?.userId;
-                          final showTime = _shouldShowTime(reversedIndex);
-                          return _buildMessageItem(message, isMe, showTime, reversedIndex);
-                        },
-                      ),
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      // reverse 模式下，index 0 是最新消息，需要反转索引
+                      final reversedIndex = _messages.length - 1 - index;
+                      final message = _messages[reversedIndex];
+                      final isMe =
+                          message.senderUserId == StorageService().user?.userId;
+                      final showTime = _shouldShowTime(reversedIndex);
+                      return _buildMessageItem(
+                          message, isMe, showTime, reversedIndex);
+                    },
+                  ),
           ),
 
           // Input Area
@@ -295,7 +299,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         textInputAction: TextInputAction.newline,
                         decoration: InputDecoration(
                           hintText: '输入内容...',
-                          hintStyle: TextStyle(color: context.textSecondaryColor, fontSize: 14),
+                          hintStyle: TextStyle(
+                              color: context.textSecondaryColor, fontSize: 14),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14,
@@ -303,7 +308,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                           ),
                           isDense: true,
                         ),
-                        style: TextStyle(fontSize: 14, color: context.textPrimaryColor),
+                        style: TextStyle(
+                            fontSize: 14, color: context.textPrimaryColor),
                       ),
                     ),
                   ),
@@ -330,8 +336,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         borderRadius: BorderRadius.circular(17),
                       ),
                       child: IconButton(
-                        onPressed: (_isSending || _messageController.text.trim().isEmpty) 
-                            ? null 
+                        onPressed: (_isSending ||
+                                _messageController.text.trim().isEmpty)
+                            ? null
                             : _sendMessage,
                         icon: _isSending
                             ? const SizedBox(
@@ -342,7 +349,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.send, size: 18, color: Colors.white),
+                            : const Icon(Icons.send,
+                                size: 18, color: Colors.white),
                         padding: EdgeInsets.zero,
                       ),
                     ),
@@ -359,15 +367,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   /// 判断是否需要显示时间（iMessage 风格：相隔5分钟以上显示）
   bool _shouldShowTime(int index) {
     if (index == 0) return true;
-    
+
     final current = _messages[index];
     final previous = _messages[index - 1];
-    
+
     final currentTime = DateTime.tryParse(current.createdAt);
     final previousTime = DateTime.tryParse(previous.createdAt);
-    
+
     if (currentTime == null || previousTime == null) return false;
-    
+
     // 相隔5分钟以上显示时间
     return currentTime.difference(previousTime).inMinutes >= 5;
   }
@@ -376,16 +384,17 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   String _formatMessageTime(String createdAt) {
     final utcTime = DateTime.tryParse(createdAt);
     if (utcTime == null) return '';
-    
+
     // 转换为本地时间
     final time = utcTime.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final messageDay = DateTime(time.year, time.month, time.day);
     final diff = today.difference(messageDay).inDays;
-    
-    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    
+
+    final timeStr =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
     if (diff == 0) {
       // 今天
       return timeStr;
@@ -401,7 +410,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  Widget _buildMessageItem(ChatMessageModel message, bool isMe, bool showTime, int index) {
+  Widget _buildMessageItem(
+      ChatMessageModel message, bool isMe, bool showTime, int index) {
     return Column(
       children: [
         if (showTime)
@@ -426,11 +436,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     // 对方起始位置 = 头像(32) + 间距(8) = 40
     // 消息最大宽度 = 屏幕宽度 - 左侧头像和间距(40) - 右侧头像和间距(40) = 屏幕宽度 - 80
     final double maxWidth = MediaQuery.of(context).size.width - 80;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMe) ...[
@@ -443,20 +454,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 maxWidth: maxWidth,
               ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: isMe ? AppColors.primary : context.backgroundColor,
                   borderRadius: BorderRadius.circular(16).copyWith(
-                    topLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                    topRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                    topLeft: isMe
+                        ? const Radius.circular(16)
+                        : const Radius.circular(4),
+                    topRight: isMe
+                        ? const Radius.circular(4)
+                        : const Radius.circular(16),
                   ),
                 ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    color: isMe ? Colors.white : context.textPrimaryColor,
-                  ),
-                ),
+                child: _buildMessageContent(message, isMe, maxWidth),
               ),
             ),
           ),
@@ -466,6 +477,67 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ],
         ],
       ),
+    );
+  }
+
+  /// 私信内容同时支持 Markdown 图片、直接粘贴的图片 URL 和普通文本。
+  Widget _buildMessageContent(
+      ChatMessageModel message, bool isMe, double maxWidth) {
+    final content = message.content;
+    final pattern = RegExp(
+      r'!\[[^\]]*\]\(([^)]+)\)|(https?://[^\s]+\.(?:png|jpe?g|gif|webp)(?:\?[^\s]*)?)',
+      caseSensitive: false,
+    );
+    final matches = pattern.allMatches(content).toList();
+    if (matches.isEmpty) {
+      return Text(
+        content,
+        style: TextStyle(
+          color: isMe ? Colors.white : context.textPrimaryColor,
+        ),
+      );
+    }
+    final textColor = isMe ? Colors.white : context.textPrimaryColor;
+    final children = <Widget>[];
+    var cursor = 0;
+    for (final match in matches) {
+      final before = content.substring(cursor, match.start).trim();
+      if (before.isNotEmpty) {
+        children.add(Text(before, style: TextStyle(color: textColor)));
+      }
+      var url = (match.group(1) ?? match.group(2) ?? '').trim();
+      while (url.endsWith('.') || url.endsWith(',') || url.endsWith(')')) {
+        url = url.substring(0, url.length - 1);
+      }
+      if (url.isNotEmpty) {
+        children.add(ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: CachedImage(
+            imageUrl: url,
+            width: (maxWidth - 36).clamp(80.0, 240.0),
+            fit: BoxFit.cover,
+            category: CacheCategory.other,
+            errorWidget: Text('图片加载失败',
+                style: TextStyle(fontSize: 12, color: textColor)),
+          ),
+        ));
+      }
+      cursor = match.end;
+    }
+    final rest = content.substring(cursor).trim();
+    if (rest.isNotEmpty) {
+      children.add(Text(rest, style: TextStyle(color: textColor)));
+    }
+    return Column(
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: 6),
+          children[i],
+        ],
+      ],
     );
   }
 

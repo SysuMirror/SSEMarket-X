@@ -32,7 +32,8 @@ class EmailValidator {
     }
 
     // 基本邮箱格式验证
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(email)) {
       return (isValid: false, message: '邮箱格式不正确');
     }
@@ -40,7 +41,7 @@ class EmailValidator {
     // 域名验证
     final parts = email.split('@');
     if (parts.length != 2) {
-       return (isValid: false, message: '邮箱格式不正确');
+      return (isValid: false, message: '邮箱格式不正确');
     }
     final domain = parts[1].toLowerCase();
     if (!validDomains.contains(domain)) {

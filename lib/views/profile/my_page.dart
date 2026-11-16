@@ -18,6 +18,7 @@ import 'package:sse_market_x/views/profile/favorites_page.dart';
 import 'package:sse_market_x/views/profile/feedback_page.dart';
 import 'package:sse_market_x/views/profile/post_history_page.dart';
 import 'package:sse_market_x/views/profile/settings_page.dart';
+import 'package:sse_market_x/views/coin/coin_center_page.dart';
 import 'package:sse_market_x/views/profile/watch_later_page.dart';
 import 'package:sse_market_x/views/home/annual_report_page.dart';
 
@@ -47,7 +48,7 @@ class _MyPageState extends State<MyPage> {
   void _initUserData() {
     // 1. 先从 StorageService 获取缓存的用户数据
     final cachedUser = StorageService().user;
-    
+
     // 2. 判断缓存数据是否完整（包含 score 等详细信息）
     // 如果 score 为 0 且 intro 为空，可能是不完整的数据，显示骨架屏
     // 但如果用户确实是新用户（score 真的是 0），也应该显示
@@ -84,7 +85,7 @@ class _MyPageState extends State<MyPage> {
       UserModel detailed = basic;
       if (basic.phone.isNotEmpty) {
         final d = await widget.apiService.getDetailedUserInfo(basic.phone);
-        detailed = basic.copyWith(score: d.score, intro: d.intro);
+        detailed = basic.copyWith(score: d.score, intro: d.intro, customTitle: d.customTitle);
       }
       if (!mounted) return;
       setState(() {
@@ -111,7 +112,8 @@ class _MyPageState extends State<MyPage> {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + 56; // Header height
-    final bottomPadding = kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
+    final bottomPadding =
+        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: context.backgroundColor,
@@ -120,7 +122,8 @@ class _MyPageState extends State<MyPage> {
         children: [
           // Content Layer
           SingleChildScrollView(
-            padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding + 16),
+            padding:
+                EdgeInsets.only(top: topPadding, bottom: bottomPadding + 16),
             child: Column(
               children: [
                 _buildUserInfoCard(context),
@@ -144,7 +147,7 @@ class _MyPageState extends State<MyPage> {
 
   Widget _buildHeader(BuildContext context) {
     final blurService = BlurEffectService();
-    
+
     return ValueListenableBuilder<bool>(
       valueListenable: blurService.enabledNotifier,
       builder: (context, isBlurEnabled, _) {
@@ -156,7 +159,7 @@ class _MyPageState extends State<MyPage> {
             right: 16,
           ),
           decoration: BoxDecoration(
-            color: isBlurEnabled 
+            color: isBlurEnabled
                 ? context.blurBackgroundColor.withOpacity(0.82)
                 : context.surfaceColor,
             border: Border(
@@ -176,7 +179,7 @@ class _MyPageState extends State<MyPage> {
             ),
           ),
         );
-        
+
         if (isBlurEnabled) {
           return ClipRect(
             child: BackdropFilter(
@@ -285,7 +288,7 @@ class _MyPageState extends State<MyPage> {
   Widget _buildUserTextsAndExp(BuildContext context) {
     final name = _user?.name.isNotEmpty ?? false ? _user!.name : '匿名用户';
     final score = _user?.score ?? 0;
-    final levelName = LevelUtils.getLevelName(score);
+    final levelName = LevelUtils.getDisplayTitle(score, _user?.customTitle ?? '');
     final nextExp = LevelUtils.getNextLevelExp(score);
     final progress = LevelUtils.getExpProgressPercent(score);
     final intro = _user?.intro ?? '';
@@ -355,7 +358,8 @@ class _MyPageState extends State<MyPage> {
 
   /// 年度报告入口：独立成一组，仅在 newSSE router 规定的活动时间内展示
   Widget _buildAnnualReportSection(BuildContext context) {
-    if (!AnnualReportConfig.isWithinAccessPeriod) return const SizedBox.shrink();
+    if (!AnnualReportConfig.isWithinAccessPeriod)
+      return const SizedBox.shrink();
     return SettingsListGroup(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       children: [
@@ -381,6 +385,20 @@ class _MyPageState extends State<MyPage> {
   Widget _buildMainMenu(BuildContext context) {
     final menuItems = <Widget>[
       SettingsListItem(
+        title: '币中心',
+        subtitle: '余额、每日任务与币流水',
+        leadingIcon: 'assets/icons/ic_coin.svg',
+        type: SettingsListItemType.navigation,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CoinCenterPage(apiService: widget.apiService),
+            ),
+          );
+        },
+        isFirst: true,
+      ),
+      SettingsListItem(
         title: '浏览历史',
         leadingIcon: 'assets/icons/ic_history_view.svg',
         type: SettingsListItemType.navigation,
@@ -391,7 +409,6 @@ class _MyPageState extends State<MyPage> {
             ),
           );
         },
-        isFirst: true,
       ),
       SettingsListItem(
         title: '我的收藏',
@@ -568,4 +585,3 @@ class _MyPageState extends State<MyPage> {
     );
   }
 }
-

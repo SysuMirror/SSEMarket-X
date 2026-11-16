@@ -96,7 +96,7 @@ class _ImageCropperPageState extends State<ImageCropperPage> {
     const maxSize = 1024.0;
     double outputW = cropRect.width;
     double outputH = cropRect.height;
-    
+
     if (outputW > maxSize || outputH > maxSize) {
       final scale = maxSize / (outputW > outputH ? outputW : outputH);
       outputW *= scale;
@@ -109,7 +109,7 @@ class _ImageCropperPageState extends State<ImageCropperPage> {
 
     // 应用变换
     canvas.save();
-    
+
     // 如果有旋转，需要调整裁剪区域
     if (rotateAngle != 0 || flipHorizontal) {
       // 简化处理：直接裁剪原图区域
@@ -127,13 +127,15 @@ class _ImageCropperPageState extends State<ImageCropperPage> {
         Paint()..filterQuality = FilterQuality.high,
       );
     }
-    
+
     canvas.restore();
 
     // 生成图片
     final picture = recorder.endRecording();
-    final croppedImage = await picture.toImage(outputW.toInt(), outputH.toInt());
-    final byteData = await croppedImage.toByteData(format: ui.ImageByteFormat.png);
+    final croppedImage =
+        await picture.toImage(outputW.toInt(), outputH.toInt());
+    final byteData =
+        await croppedImage.toByteData(format: ui.ImageByteFormat.png);
 
     return byteData?.buffer.asUint8List();
   }

@@ -91,7 +91,8 @@ class _ShareModalState extends State<ShareModal> {
     if (box0 != null && box0.hasSize) h0 = box0.size.height;
     final box1 = _keyPage1.currentContext?.findRenderObject() as RenderBox?;
     if (box1 != null && box1.hasSize) h1 = box1.size.height;
-    final bool changed = (h0 != null && _pageHeights[0] != h0) || (h1 != null && _pageHeights[1] != h1);
+    final bool changed = (h0 != null && _pageHeights[0] != h0) ||
+        (h1 != null && _pageHeights[1] != h1);
     if (h0 != null) _pageHeights[0] = h0;
     if (h1 != null) _pageHeights[1] = h1;
     if (!changed && h0 == null && h1 == null) return;
@@ -128,72 +129,73 @@ class _ShareModalState extends State<ShareModal> {
     return '打开集市APP，在搜索栏输入【${widget.postId}】以访问帖子【${widget.postTitle} - ${widget.authorName}】';
   }
 
-  Widget _buildTextShareContent(BuildContext context, String shareText, {Key? contentKey}) {
+  Widget _buildTextShareContent(BuildContext context, String shareText,
+      {Key? contentKey}) {
     final column = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.surfaceColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '分享文案',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.textSecondaryColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SelectableText(
-                  shareText,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: context.textPrimaryColor,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _copyToClipboard,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: const Text(
-                '复制',
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '分享文案',
                 style: TextStyle(
-                  fontSize: 17,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
+                  color: context.textSecondaryColor,
                 ),
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                shareText,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: context.textPrimaryColor,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _copyToClipboard,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              '复制',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
+        ),
+      ],
     );
     return contentKey != null
         ? SingleChildScrollView(
@@ -205,75 +207,75 @@ class _ShareModalState extends State<ShareModal> {
 
   Widget _buildImageShareContent(BuildContext context, {Key? contentKey}) {
     final column = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 440),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: RepaintBoundary(
-                  key: _imagePreviewKey,
-                  child: ShareImageWidget(
-                    appLogoPath: 'assets/images/logo.png',
-                    postTitle: widget.postTitle,
-                    postContent: widget.postContent,
-                    authorName: widget.authorName,
-                    authorAvatar: widget.authorAvatar,
-                    createdAt: widget.createdAt,
-                    postId: widget.postId,
-                  ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 440),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: RepaintBoundary(
+                key: _imagePreviewKey,
+                child: ShareImageWidget(
+                  appLogoPath: 'assets/images/logo.png',
+                  postTitle: widget.postTitle,
+                  postContent: widget.postContent,
+                  authorName: widget.authorName,
+                  authorAvatar: widget.authorAvatar,
+                  createdAt: widget.createdAt,
+                  postId: widget.postId,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _isGeneratingImage ? null : _saveShareImage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _isGeneratingImage ? null : _saveShareImage,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: _isGeneratingImage
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text(
-                      '生成图片',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
+              disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+            ),
+            child: _isGeneratingImage
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
-            ),
+                  )
+                : const Text(
+                    '生成图片',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
-        ],
+        ),
+      ],
     );
     return contentKey != null
         ? SingleChildScrollView(
@@ -325,7 +327,8 @@ class _ShareModalState extends State<ShareModal> {
         final result = await SaverGallery.saveImage(
           byteData.buffer.asUint8List(),
           quality: 100,
-          fileName: 'sse_market_share_${DateTime.now().millisecondsSinceEpoch}.png',
+          fileName:
+              'sse_market_share_${DateTime.now().millisecondsSinceEpoch}.png',
           skipIfExists: false,
         );
 
@@ -378,8 +381,8 @@ class _ShareModalState extends State<ShareModal> {
                 width: 36,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: isDark 
-                      ? Colors.white.withOpacity(0.2) 
+                  color: isDark
+                      ? Colors.white.withOpacity(0.2)
                       : Colors.black.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(2.5),
                 ),
@@ -409,8 +412,8 @@ class _ShareModalState extends State<ShareModal> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: isDark 
-                            ? Colors.white.withOpacity(0.1) 
+                        color: isDark
+                            ? Colors.white.withOpacity(0.1)
                             : Colors.black.withOpacity(0.05),
                         shape: BoxShape.circle,
                       ),
@@ -435,12 +438,15 @@ class _ShareModalState extends State<ShareModal> {
                 controller: _pageController,
                 onPageChanged: (index) {
                   setState(() {
-                    _selectedShareType = index == 0 ? ShareType.text : ShareType.image;
+                    _selectedShareType =
+                        index == 0 ? ShareType.text : ShareType.image;
                   });
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeights());
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) => _measureHeights());
                 },
                 children: [
-                  _buildTextShareContent(context, shareText, contentKey: _keyPage0),
+                  _buildTextShareContent(context, shareText,
+                      contentKey: _keyPage0),
                   _buildImageShareContent(context, contentKey: _keyPage1),
                 ],
               ),
@@ -453,8 +459,9 @@ class _ShareModalState extends State<ShareModal> {
     // 移动端底部弹出时添加底部安全区
     if (!widget.isDialog) {
       final bool isDark = Theme.of(context).brightness == Brightness.dark;
-      final backgroundColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-      
+      final backgroundColor =
+          isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+
       content = Container(
         decoration: BoxDecoration(
           color: backgroundColor,

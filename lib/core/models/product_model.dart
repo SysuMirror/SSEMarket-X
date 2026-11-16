@@ -118,7 +118,8 @@ class ProductModel {
       sellerName: _readString(['Seller', 'seller', 'SellerName', 'sellerName']),
       price: _readDouble(['Price', 'price']),
       name: _readString(['Name', 'name', 'Title', 'title']),
-      description: _readString(['Description', 'description', 'Content', 'content']),
+      description:
+          _readString(['Description', 'description', 'Content', 'content']),
       photos: _readPhotos(),
       isSold: _readBool(['ISSold', 'isSold', 'IsSold']),
       isAnonymous: _readBool(['ISAnonymous', 'isAnonymous', 'IsAnonymous']),

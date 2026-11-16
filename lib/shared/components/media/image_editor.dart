@@ -193,8 +193,10 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     );
 
     final picture = recorder.endRecording();
-    final croppedImage = await picture.toImage(outputW.toInt(), outputH.toInt());
-    final byteData = await croppedImage.toByteData(format: ui.ImageByteFormat.png);
+    final croppedImage =
+        await picture.toImage(outputW.toInt(), outputH.toInt());
+    final byteData =
+        await croppedImage.toByteData(format: ui.ImageByteFormat.png);
 
     return byteData?.buffer.asUint8List();
   }
@@ -221,12 +223,14 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
 
     final picture = recorder.endRecording();
     final adjustedImage = await picture.toImage(image.width, image.height);
-    final byteData = await adjustedImage.toByteData(format: ui.ImageByteFormat.png);
+    final byteData =
+        await adjustedImage.toByteData(format: ui.ImageByteFormat.png);
 
     return byteData?.buffer.asUint8List();
   }
 
-  List<double> _buildColorMatrix(double brightness, double contrast, double saturation) {
+  List<double> _buildColorMatrix(
+      double brightness, double contrast, double saturation) {
     final b = brightness * 255;
     final c = 1.0 + contrast;
     final t = (1.0 - c) / 2.0 * 255;
@@ -239,10 +243,26 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     final sb = (1 - s) * lumB;
 
     return <double>[
-      c * (sr + s), c * sg, c * sb, 0, t + b,
-      c * sr, c * (sg + s), c * sb, 0, t + b,
-      c * sr, c * sg, c * (sb + s), 0, t + b,
-      0, 0, 0, 1, 0,
+      c * (sr + s),
+      c * sg,
+      c * sb,
+      0,
+      t + b,
+      c * sr,
+      c * (sg + s),
+      c * sb,
+      0,
+      t + b,
+      c * sr,
+      c * sg,
+      c * (sb + s),
+      0,
+      t + b,
+      0,
+      0,
+      0,
+      1,
+      0,
     ];
   }
 
@@ -387,7 +407,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       child: Row(
         children: [
           Expanded(child: _buildModeTab('裁剪', _EditMode.crop, Icons.crop)),
-          Container(width: 0.5, height: 48, color: Colors.white.withOpacity(0.1)),
+          Container(
+              width: 0.5, height: 48, color: Colors.white.withOpacity(0.1)),
           Expanded(child: _buildModeTab('调整', _EditMode.adjust, Icons.tune)),
         ],
       ),
@@ -408,13 +429,16 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
             Icon(
               icon,
               size: 22,
-              color: isActive ? AppColors.primary : Colors.white.withOpacity(0.5),
+              color:
+                  isActive ? AppColors.primary : Colors.white.withOpacity(0.5),
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? AppColors.primary : Colors.white.withOpacity(0.5),
+                color: isActive
+                    ? AppColors.primary
+                    : Colors.white.withOpacity(0.5),
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -457,14 +481,17 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_aspectRatioOptions.length, (index) {
+                    children:
+                        List.generate(_aspectRatioOptions.length, (index) {
                       final option = _aspectRatioOptions[index];
                       final isSelected = _selectedRatioIndex == index;
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedRatioIndex = index),
+                        onTap: () =>
+                            setState(() => _selectedRatioIndex = index),
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? AppColors.primary
@@ -474,9 +501,13 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                           child: Text(
                             option.label,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.7),
                               fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -552,7 +583,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                 _saturation = 0;
               }),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
@@ -571,8 +603,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     );
   }
 
-  Widget _buildSlider(
-      String label, IconData icon, double value, ValueChanged<double> onChanged) {
+  Widget _buildSlider(String label, IconData icon, double value,
+      ValueChanged<double> onChanged) {
     return Row(
       children: [
         Icon(icon, size: 18, color: Colors.white.withOpacity(0.6)),
@@ -610,7 +642,9 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
           child: Text(
             '${(value * 100).round()}',
             style: TextStyle(
-              color: value != 0 ? AppColors.primary : Colors.white.withOpacity(0.5),
+              color: value != 0
+                  ? AppColors.primary
+                  : Colors.white.withOpacity(0.5),
               fontSize: 12,
               fontWeight: value != 0 ? FontWeight.w600 : FontWeight.normal,
             ),

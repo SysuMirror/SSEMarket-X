@@ -98,7 +98,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
     return true;
   }
 
-
   Future<void> _submitProduct() async {
     if (!_validateForm()) return;
     if (_isSubmitting) return;
@@ -112,7 +111,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
       final List<String> imageUrls = [];
       for (int i = 0; i < _selectedImages.length; i++) {
         final bytes = _selectedImages[i];
-        final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+        final fileName =
+            'product_${DateTime.now().millisecondsSinceEpoch}_$i.png';
         final url = await widget.apiService.uploadPhoto(bytes, fileName);
         if (url != null) {
           imageUrls.add(url);
@@ -199,7 +199,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: _isSubmitting ? context.textTertiaryColor : AppColors.primary,
+                  color: _isSubmitting
+                      ? context.textTertiaryColor
+                      : AppColors.primary,
                 ),
               ),
             ),
@@ -236,7 +238,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
     );
   }
 
-
   Widget _buildPriceField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +268,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
                 ),
               ),
             ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 0, minHeight: 0),
             hintText: '请输入价格（整数）',
             hintStyle: TextStyle(color: context.textTertiaryColor),
             filled: true,
@@ -434,5 +436,4 @@ class _CreateProductPageState extends State<CreateProductPage> {
       ),
     );
   }
-
 }

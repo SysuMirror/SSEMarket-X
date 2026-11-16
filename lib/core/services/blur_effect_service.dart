@@ -9,7 +9,7 @@ class BlurEffectService {
   BlurEffectService._internal();
 
   static const String _keyBlurEnabled = 'blur_effect_enabled';
-  
+
   // 使用 ValueNotifier 实现响应式更新
   final ValueNotifier<bool> enabledNotifier = ValueNotifier<bool>(true);
 

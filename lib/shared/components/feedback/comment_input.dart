@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sse_market_x/core/api/api_service.dart';
+import 'package:sse_market_x/core/models/staff_alias_model.dart';
 import 'package:sse_market_x/views/post/markdown_help_page.dart';
 import 'package:sse_market_x/shared/components/markdown/latex_markdown.dart';
 import 'package:sse_market_x/shared/components/media/image_editor.dart';
@@ -17,6 +18,7 @@ class CommentInput extends StatefulWidget {
   final Future<bool> Function(String content) onSend;
   final String placeholder;
   final bool autoFocus;
+
   /// 当输入框失去焦点时回调，参数为当前文本（已 trim），可用于弹窗在键盘收起且内容为空时关闭
   final void Function(String currentText)? onUnfocus;
 
@@ -39,6 +41,7 @@ class _CommentInputState extends State<CommentInput> {
   final FocusNode _focusNode = FocusNode();
   final GlobalKey _kaomojiButtonKey = GlobalKey();
   final ImagePicker _picker = ImagePicker();
+  List<StaffAliasModel> _staffAliases = const <StaffAliasModel>[];
   bool _isSending = false;
   bool _showPreview = false;
   bool _isUploading = false;
@@ -48,6 +51,44 @@ class _CommentInputState extends State<CommentInput> {
   void initState() {
     super.initState();
     _focusNode.addListener(_onFocusChange);
+    _loadStaffAliases();
+  }
+
+  Future<void> _loadStaffAliases() async {
+    final aliases = await widget.apiService.getStaffAliases();
+    if (mounted && aliases.isNotEmpty) {
+      setState(() => _staffAliases = aliases);
+    }
+  }
+
+  Future<void> _showStaffPicker() async {
+    final alias = await showModalBottomSheet<StaffAliasModel>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('要 @ 哪位开发人员？',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+            for (final item in _staffAliases)
+              ListTile(
+                leading: const CircleAvatar(
+                  radius: 18,
+                  child: Icon(Icons.alternate_email, size: 18),
+                ),
+                title: Text(item.title.isNotEmpty ? item.title : item.alias),
+                subtitle: Text('@${item.alias}'),
+                onTap: () => Navigator.pop(context, item),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (alias != null) _insertKaomoji('@${alias.alias} ');
   }
 
   void _onFocusChange() {
@@ -67,12 +108,13 @@ class _CommentInputState extends State<CommentInput> {
 
   void _showKaomojiOverlay() {
     _hideKaomojiOverlay();
-    
-    final RenderBox? renderBox = _kaomojiButtonKey.currentContext?.findRenderObject() as RenderBox?;
+
+    final RenderBox? renderBox =
+        _kaomojiButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    
+
     final position = renderBox.localToGlobal(Offset.zero);
-    
+
     _kaomojiOverlay = OverlayEntry(
       builder: (context) => Stack(
         children: [
@@ -98,7 +140,7 @@ class _CommentInputState extends State<CommentInput> {
         ],
       ),
     );
-    
+
     Overlay.of(context).insert(_kaomojiOverlay!);
   }
 
@@ -152,11 +194,11 @@ class _CommentInputState extends State<CommentInput> {
   void _insertKaomoji(String kaomoji) {
     final text = _controller.text;
     final selection = _controller.selection;
-    
+
     // 如果没有有效的选择位置，追加到末尾
     final start = selection.start >= 0 ? selection.start : text.length;
     final end = selection.end >= 0 ? selection.end : text.length;
-    
+
     final newText = text.replaceRange(start, end, kaomoji);
     _controller.value = TextEditingValue(
       text: newText,
@@ -167,23 +209,25 @@ class _CommentInputState extends State<CommentInput> {
   }
 
   /// 插入 Markdown 语法
-  void _insertMarkdown(String prefix, String suffix, {String placeholder = ''}) {
+  void _insertMarkdown(String prefix, String suffix,
+      {String placeholder = ''}) {
     final text = _controller.text;
     final selection = _controller.selection;
-    
+
     final start = selection.start >= 0 ? selection.start : text.length;
     final end = selection.end >= 0 ? selection.end : text.length;
-    
+
     String selectedText = '';
     if (start != end) {
       selectedText = text.substring(start, end);
     } else if (placeholder.isNotEmpty) {
       selectedText = placeholder;
     }
-    
-    final newText = text.replaceRange(start, end, '$prefix$selectedText$suffix');
+
+    final newText =
+        text.replaceRange(start, end, '$prefix$selectedText$suffix');
     final newCursorPos = start + prefix.length + selectedText.length;
-    
+
     _controller.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: newCursorPos),
@@ -207,10 +251,7 @@ class _CommentInputState extends State<CommentInput> {
           ),
           const SizedBox(height: 6),
           // 输入框或预览
-          if (_showPreview)
-            _buildPreview()
-          else
-            _buildEditor(),
+          if (_showPreview) _buildPreview() else _buildEditor(),
           const SizedBox(height: 6),
           // 底部按钮组
           Padding(
@@ -224,100 +265,106 @@ class _CommentInputState extends State<CommentInput> {
                   children: [
                     // Markdown帮助按钮
                     _buildBottomIconButton(
-                    icon: Icons.help_outline,
-                    tooltip: 'Markdown帮助',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MarkdownHelpPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  // 预览按钮
-                  _buildBottomIconButton(
-                    icon: _showPreview ? Icons.edit : Icons.visibility,
-                    tooltip: _showPreview ? '编辑' : '预览',
-                    onPressed: () {
-                      setState(() {
-                        _showPreview = !_showPreview;
-                      });
-                    },
-                    isActive: _showPreview,
-                  ),
-                ],
-              ),
-              // 右侧：颜文字和发送按钮
-              if (!_showPreview)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 颜文字按钮
-                    Container(
-                      key: _kaomojiButtonKey,
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: context.surfaceColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: context.dividerColor,
-                          width: 0.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                      icon: Icons.help_outline,
+                      tooltip: 'Markdown帮助',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MarkdownHelpPage(),
                           ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: _toggleKaomoji,
-                        icon: const Icon(Icons.emoji_emotions_outlined, size: 16),
-                        color: _kaomojiOverlay != null ? AppColors.primary : context.textSecondaryColor,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
-                    // 发送按钮
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: _controller.text.trim().isEmpty 
-                            ? context.textSecondaryColor.withAlpha(100)
-                            : AppColors.primary,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: (_isSending || _controller.text.trim().isEmpty) ? null : _handleSend,
-                        icon: _isSending 
-                            ? const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.send, size: 14),
-                        color: Colors.white,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                    // 预览按钮
+                    _buildBottomIconButton(
+                      icon: _showPreview ? Icons.edit : Icons.visibility,
+                      tooltip: _showPreview ? '编辑' : '预览',
+                      onPressed: () {
+                        setState(() {
+                          _showPreview = !_showPreview;
+                        });
+                      },
+                      isActive: _showPreview,
                     ),
                   ],
                 ),
+                // 右侧：颜文字和发送按钮
+                if (!_showPreview)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 颜文字按钮
+                      Container(
+                        key: _kaomojiButtonKey,
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: context.surfaceColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: context.dividerColor,
+                            width: 0.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: _toggleKaomoji,
+                          icon: const Icon(Icons.emoji_emotions_outlined,
+                              size: 16),
+                          color: _kaomojiOverlay != null
+                              ? AppColors.primary
+                              : context.textSecondaryColor,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 发送按钮
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: _controller.text.trim().isEmpty
+                              ? context.textSecondaryColor.withAlpha(100)
+                              : AppColors.primary,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed:
+                              (_isSending || _controller.text.trim().isEmpty)
+                                  ? null
+                                  : _handleSend,
+                          icon: _isSending
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send, size: 14),
+                          color: Colors.white,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -351,17 +398,20 @@ class _CommentInputState extends State<CommentInput> {
                 _buildToolButton(
                   icon: Icons.format_bold,
                   tooltip: '粗体：**粗体文字**',
-                  onPressed: () => _insertMarkdown('**', '**', placeholder: '粗体文字'),
+                  onPressed: () =>
+                      _insertMarkdown('**', '**', placeholder: '粗体文字'),
                 ),
                 _buildToolButton(
                   icon: Icons.format_italic,
                   tooltip: '斜体：*斜体文字*',
-                  onPressed: () => _insertMarkdown('*', '*', placeholder: '斜体文字'),
+                  onPressed: () =>
+                      _insertMarkdown('*', '*', placeholder: '斜体文字'),
                 ),
                 _buildToolButton(
                   icon: Icons.format_list_bulleted,
                   tooltip: '列表：- 列表项',
-                  onPressed: () => _insertMarkdown('\n- ', '\n', placeholder: '列表项'),
+                  onPressed: () =>
+                      _insertMarkdown('\n- ', '\n', placeholder: '列表项'),
                 ),
                 _buildToolButton(
                   icon: Icons.code,
@@ -371,17 +421,29 @@ class _CommentInputState extends State<CommentInput> {
                 _buildToolButton(
                   icon: Icons.format_quote,
                   tooltip: '引用：> 引用内容',
-                  onPressed: () => _insertMarkdown('\n> ', '\n', placeholder: '引用内容'),
+                  onPressed: () =>
+                      _insertMarkdown('\n> ', '\n', placeholder: '引用内容'),
                 ),
               ],
             ],
           ),
-          // 右侧：上传图片按钮
+          // 右侧：@ 职位 / 上传图片
           if (!_showPreview)
-            _buildToolButton(
-              icon: _isUploading ? Icons.hourglass_empty : Icons.image,
-              tooltip: '上传图片',
-              onPressed: _isUploading ? () {} : _pickAndUploadImage,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_staffAliases.isNotEmpty)
+                  _buildToolButton(
+                    icon: Icons.alternate_email,
+                    tooltip: '@ 开发人员',
+                    onPressed: _showStaffPicker,
+                  ),
+                _buildToolButton(
+                  icon: _isUploading ? Icons.hourglass_empty : Icons.image,
+                  tooltip: '上传图片',
+                  onPressed: _isUploading ? () {} : _pickAndUploadImage,
+                ),
+              ],
             ),
         ],
       ),
@@ -480,9 +542,9 @@ class _CommentInputState extends State<CommentInput> {
       if (image == null) return;
 
       final imageBytes = await image.readAsBytes();
-      
+
       if (!mounted) return;
-      
+
       // 打开图片编辑器
       final editedBytes = await ImageEditorPage.show(
         context,
@@ -490,16 +552,17 @@ class _CommentInputState extends State<CommentInput> {
         enableCrop: true,
         enableAdjust: true,
       );
-      
+
       if (editedBytes == null || !mounted) return;
 
       setState(() {
         _isUploading = true;
       });
-      
+
       final fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.png';
-      final imageUrl = await widget.apiService.uploadPhoto(editedBytes, fileName);
-      
+      final imageUrl =
+          await widget.apiService.uploadPhoto(editedBytes, fileName);
+
       if (imageUrl != null && mounted) {
         // URL encode the image URL to handle special characters
         final encodedUrl = Uri.encodeFull(imageUrl);
@@ -507,18 +570,20 @@ class _CommentInputState extends State<CommentInput> {
         final markdownImage = '![$fileName]($encodedUrl)';
         final currentText = _controller.text;
         final selection = _controller.selection;
-        final cursorPos = selection.baseOffset >= 0 ? selection.baseOffset : currentText.length;
-        
-        final newText = currentText.substring(0, cursorPos) + 
-                       markdownImage + 
-                       currentText.substring(cursorPos);
-        
+        final cursorPos = selection.baseOffset >= 0
+            ? selection.baseOffset
+            : currentText.length;
+
+        final newText = currentText.substring(0, cursorPos) +
+            markdownImage +
+            currentText.substring(cursorPos);
+
         _controller.text = newText;
         // 移动光标到插入内容之后
         _controller.selection = TextSelection.collapsed(
           offset: cursorPos + markdownImage.length,
         );
-        
+
         SnackBarHelper.show(context, '图片上传成功');
       } else if (mounted) {
         SnackBarHelper.show(context, '图片上传失败');
@@ -572,9 +637,9 @@ class _CommentInputState extends State<CommentInput> {
 /// 虚线分割线绘制器
 class DashedLinePainter extends CustomPainter {
   final Color? color;
-  
+
   DashedLinePainter({this.color});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()

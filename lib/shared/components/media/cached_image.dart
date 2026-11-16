@@ -141,6 +141,8 @@ class _CachedImageState extends State<CachedImage>
           width: widget.width,
           height: widget.height,
           fit: widget.fit,
+          // Web：用 HTML <img> 渲染跨域图片，避免 CanvasKit fetch 被 CORS 拦截。
+          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
           errorBuilder: (context, error, stackTrace) {
             return widget.errorWidget ?? _buildErrorWidget(context);
           },

@@ -42,16 +42,16 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
   final Map<BrowseHistoryType, GlobalKey> _tabKeys = {};
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   List<BrowseHistoryItem> _allHistory = [];
   UserModel _user = UserModel.empty();
   bool _isLoading = false;
   BrowseHistoryType _currentType = BrowseHistoryType.post;
-  
+
   // 选择模式相关
   bool _isSelectionMode = false;
   final Set<String> _selectedItems = {}; // 使用 "id_type" 作为唯一标识
-  
+
   // 搜索相关
   bool _isSearchMode = false;
   String _searchKeyword = '';
@@ -83,7 +83,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
     try {
       final user = await widget.apiService.getUserInfo();
       final history = await _historyService.getHistory();
-      
+
       if (mounted) {
         setState(() {
           _user = user;
@@ -117,24 +117,30 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         itemType = BrowseHistoryItemType.product;
         break;
     }
-    
+
     var filtered = _allHistory.where((item) => item.type == itemType).toList();
-    
+
     // 应用搜索过滤
     if (_searchKeyword.isNotEmpty) {
       filtered = filtered.where((item) {
         if (item.type == BrowseHistoryItemType.product) {
           final product = ProductModel.fromDynamic(item.data);
-          return product.name.toLowerCase().contains(_searchKeyword.toLowerCase()) ||
-                 product.description.toLowerCase().contains(_searchKeyword.toLowerCase());
+          return product.name
+                  .toLowerCase()
+                  .contains(_searchKeyword.toLowerCase()) ||
+              product.description
+                  .toLowerCase()
+                  .contains(_searchKeyword.toLowerCase());
         } else {
           final post = item.data as PostModel;
-          return post.title.toLowerCase().contains(_searchKeyword.toLowerCase()) ||
-                 post.content.toLowerCase().contains(_searchKeyword.toLowerCase());
+          return post.title
+                  .toLowerCase()
+                  .contains(_searchKeyword.toLowerCase()) ||
+              post.content.toLowerCase().contains(_searchKeyword.toLowerCase());
         }
       }).toList();
     }
-    
+
     return filtered;
   }
 
@@ -158,12 +164,14 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
   void _scrollToTab(BrowseHistoryType type) {
     final key = _tabKeys[type];
     if (key?.currentContext != null) {
-      final RenderBox renderBox = key!.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox renderBox =
+          key!.currentContext!.findRenderObject() as RenderBox;
       final position = renderBox.localToGlobal(Offset.zero);
-      
+
       // 左对齐滚动，确保选中的 tab 可见
-      final targetOffset = _tabScrollController.offset + position.dx - 16; // 16 是左边距
-      
+      final targetOffset =
+          _tabScrollController.offset + position.dx - 16; // 16 是左边距
+
       _tabScrollController.animateTo(
         targetOffset.clamp(0, _tabScrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 300),
@@ -188,7 +196,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         itemType = BrowseHistoryItemType.product;
         break;
     }
-    
+
     return _allHistory.where((item) => item.type == itemType).length;
   }
 
@@ -199,7 +207,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
   void _toggleSelection(BrowseHistoryItem item) {
     // 搜索模式下不允许进入选择模式
     if (_isSearchMode) return;
-    
+
     setState(() {
       final key = _getItemKey(item);
       if (_selectedItems.contains(key)) {
@@ -214,7 +222,8 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
   void _selectAll() {
     setState(() {
       final currentItems = _displayHistory;
-      final allSelected = currentItems.every((item) => _selectedItems.contains(_getItemKey(item)));
+      final allSelected = currentItems
+          .every((item) => _selectedItems.contains(_getItemKey(item)));
       if (allSelected) {
         for (final item in currentItems) {
           _selectedItems.remove(_getItemKey(item));
@@ -317,9 +326,9 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           break;
       }
       await _historyService.clearHistory(type: itemType);
-      
+
       _loadUserAndHistory();
-      
+
       if (mounted) {
         SnackBarHelper.show(context, '已清空浏览历史');
       }
@@ -337,16 +346,18 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(
-            _isSelectionMode ? Icons.close : (_isSearchMode ? Icons.arrow_back : Icons.arrow_back),
+            _isSelectionMode
+                ? Icons.close
+                : (_isSearchMode ? Icons.arrow_back : Icons.arrow_back),
             color: context.textPrimaryColor,
           ),
-          onPressed: _isSelectionMode 
-              ? _cancelSelection 
-              : _isSearchMode 
-                  ? _toggleSearchMode 
+          onPressed: _isSelectionMode
+              ? _cancelSelection
+              : _isSearchMode
+                  ? _toggleSearchMode
                   : () => Navigator.of(context).pop(),
         ),
-        title: _isSearchMode 
+        title: _isSearchMode
             ? TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
@@ -381,7 +392,8 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
             TextButton(
               onPressed: _selectAll,
               child: Text(
-                _displayHistory.every((item) => _selectedItems.contains(_getItemKey(item)))
+                _displayHistory.every(
+                        (item) => _selectedItems.contains(_getItemKey(item)))
                     ? '取消全选'
                     : '全选',
                 style: const TextStyle(
@@ -431,8 +443,8 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
       if (_currentType == BrowseHistoryType.product) {
         return const ProductGridSkeleton(itemCount: 6);
       } else {
-        final isDense = _currentType == BrowseHistoryType.rating || 
-                       _currentType == BrowseHistoryType.course;
+        final isDense = _currentType == BrowseHistoryType.rating ||
+            _currentType == BrowseHistoryType.course;
         return PostListSkeleton(itemCount: 5, isDense: isDense);
       }
     }
@@ -441,8 +453,9 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
       children: [
         // Tab 选择器（搜索模式下隐藏）
         if (!_isSelectionMode && !_isSearchMode) _buildTabSelector(),
-        if (!_isSelectionMode && !_isSearchMode) Divider(height: 1, color: context.dividerColor),
-        
+        if (!_isSelectionMode && !_isSearchMode)
+          Divider(height: 1, color: context.dividerColor),
+
         // 提示信息（搜索模式下隐藏）
         if (!_isSelectionMode && !_isSearchMode)
           Container(
@@ -469,8 +482,9 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
               ],
             ),
           ),
-        if (!_isSelectionMode && !_isSearchMode) Divider(height: 1, color: context.dividerColor),
-        
+        if (!_isSelectionMode && !_isSearchMode)
+          Divider(height: 1, color: context.dividerColor),
+
         // 搜索结果提示
         if (_isSearchMode && _searchKeyword.isNotEmpty)
           Container(
@@ -485,14 +499,16 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
               ),
             ),
           ),
-        if (_isSearchMode && _searchKeyword.isNotEmpty) 
+        if (_isSearchMode && _searchKeyword.isNotEmpty)
           Divider(height: 1, color: context.dividerColor),
-        
+
         // 历史列表 - 使用 PageView 支持横向滑动切换
         Expanded(
           child: _isSearchMode
               // 搜索模式下不使用 PageView
-              ? (_displayHistory.isEmpty ? _buildEmptyState() : _buildHistoryList())
+              ? (_displayHistory.isEmpty
+                  ? _buildEmptyState()
+                  : _buildHistoryList())
               : PageView.builder(
                   controller: _pageController,
                   onPageChanged: _onPageChanged,
@@ -524,13 +540,13 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         itemType = BrowseHistoryItemType.product;
         break;
     }
-    
+
     final history = _allHistory.where((item) => item.type == itemType).toList();
-    
+
     if (history.isEmpty) {
       return _buildEmptyStateForType(type);
     }
-    
+
     // 商品使用网格布局
     if (type == BrowseHistoryType.product) {
       return RefreshIndicator(
@@ -550,7 +566,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         ),
       );
     }
-    
+
     // 其他类型使用列表布局
     return RefreshIndicator(
       onRefresh: _loadUserAndHistory,
@@ -652,7 +668,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           children: BrowseHistoryType.values.map((type) {
             final count = _getTypeCount(type);
             final isSelected = _currentType == type;
-            
+
             return _HistoryTabChip(
               key: _tabKeys[type],
               label: type.label,
@@ -672,13 +688,15 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            _isSearchMode && _searchKeyword.isNotEmpty ? Icons.search_off : Icons.history,
+            _isSearchMode && _searchKeyword.isNotEmpty
+                ? Icons.search_off
+                : Icons.history,
             size: 64,
             color: context.textSecondaryColor,
           ),
           const SizedBox(height: 16),
           Text(
-            _isSearchMode && _searchKeyword.isNotEmpty 
+            _isSearchMode && _searchKeyword.isNotEmpty
                 ? '未找到匹配的${_currentType.label}'
                 : '暂无${_currentType.label}浏览记录',
             style: TextStyle(
@@ -696,7 +714,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
     if (_currentType == BrowseHistoryType.product) {
       return _buildProductGrid();
     }
-    
+
     // 其他分区使用列表布局
     return RefreshIndicator(
       onRefresh: _loadUserAndHistory,
@@ -734,28 +752,30 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
   Widget _buildProductHistoryItem(BrowseHistoryItem item) {
     final isSelected = _selectedItems.contains(_getItemKey(item));
     final product = ProductModel.fromDynamic(item.data);
-    
+
     return GestureDetector(
       onLongPress: () {
         if (!_isSelectionMode) {
           _toggleSelection(item);
         }
       },
-      onTap: _isSelectionMode 
+      onTap: _isSelectionMode
           ? () => _toggleSelection(item)
           : () => _navigateToProductDetail(product),
       child: Stack(
         children: [
           ProductCard(
             product: product,
-            onTap: _isSelectionMode ? null : () => _navigateToProductDetail(product),
+            onTap: _isSelectionMode
+                ? null
+                : () => _navigateToProductDetail(product),
           ),
           // 选择遮罩
           if (_isSelectionMode)
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected 
+                  color: isSelected
                       ? AppColors.primary.withOpacity(0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
@@ -774,7 +794,8 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
                   color: isSelected ? AppColors.primary : context.surfaceColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : context.dividerColor,
+                    color:
+                        isSelected ? AppColors.primary : context.dividerColor,
                     width: 2,
                   ),
                   boxShadow: [
@@ -797,18 +818,18 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
 
   Widget _buildHistoryItem(BrowseHistoryItem item) {
     final isSelected = _selectedItems.contains(_getItemKey(item));
-    
+
     Widget cardContent;
-    
+
     // 商品类型不应该在这里处理，已经在 _buildProductGrid 中处理
     if (item.type == BrowseHistoryItemType.product) {
       return const SizedBox.shrink();
     }
-    
+
     {
       // 帖子类型（包括普通帖子、课程、打分）
       final post = item.data as PostModel;
-      
+
       // 根据类型选择合适的卡片组件和样式
       Widget card;
       if (item.type == BrowseHistoryItemType.rating) {
@@ -817,11 +838,11 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           post: post,
           isDense: true, // 打分使用紧凑模式
           hidePartition: true, // 隐藏分区标签（用户已在对应分区标签下）
-          onTap: _isSelectionMode 
+          onTap: _isSelectionMode
               ? null // 选择模式下禁用卡片自带的点击
               : () => _navigateToPostDetail(item, post),
-          onLikeTap: _isSelectionMode 
-              ? null 
+          onLikeTap: _isSelectionMode
+              ? null
               : () async {
                   return widget.apiService.likePost(post.id, _user.phone);
                 },
@@ -832,11 +853,11 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           post: post,
           isDense: true, // 课程使用紧凑模式
           hidePartition: true, // 隐藏分区标签（用户已在对应分区标签下）
-          onTap: _isSelectionMode 
+          onTap: _isSelectionMode
               ? null // 选择模式下禁用卡片自带的点击
               : () => _navigateToPostDetail(item, post),
-          onLikeTap: _isSelectionMode 
-              ? null 
+          onLikeTap: _isSelectionMode
+              ? null
               : () async {
                   return widget.apiService.likePost(post.id, _user.phone);
                 },
@@ -846,20 +867,20 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         card = PostCard(
           post: post,
           hidePartition: true, // 隐藏分区标签（用户已在对应分区标签下）
-          onTap: _isSelectionMode 
+          onTap: _isSelectionMode
               ? null // 选择模式下禁用卡片自带的点击
               : () => _navigateToPostDetail(item, post),
-          onLikeTap: _isSelectionMode 
-              ? null 
+          onLikeTap: _isSelectionMode
+              ? null
               : () async {
                   return widget.apiService.likePost(post.id, _user.phone);
                 },
         );
       }
-      
+
       cardContent = card;
     }
-    
+
     // 添加长按手势和选择遮罩
     return GestureDetector(
       onLongPress: () {
@@ -875,7 +896,7 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
           if (_isSelectionMode)
             Positioned.fill(
               child: Container(
-                color: isSelected 
+                color: isSelected
                     ? AppColors.primary.withOpacity(0.1)
                     : Colors.transparent,
               ),
@@ -892,7 +913,8 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
                   color: isSelected ? AppColors.primary : context.surfaceColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : context.dividerColor,
+                    color:
+                        isSelected ? AppColors.primary : context.dividerColor,
                     width: 2,
                   ),
                   boxShadow: [
@@ -924,9 +946,10 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
     );
   }
 
-  Future<void> _navigateToPostDetail(BrowseHistoryItem item, PostModel post) async {
+  Future<void> _navigateToPostDetail(
+      BrowseHistoryItem item, PostModel post) async {
     Widget detailPage;
-    
+
     // 只有打分类型使用 ScorePostDetailPage
     if (item.type == BrowseHistoryItemType.rating) {
       detailPage = ScorePostDetailPage(
@@ -942,11 +965,11 @@ class _BrowseHistoryPageState extends State<BrowseHistoryPage> {
         initialPost: post, // 传递初始数据
       );
     }
-    
+
     final result = await Navigator.of(context).push<Map<String, dynamic>?>(
       MaterialPageRoute(builder: (_) => detailPage),
     );
-    
+
     if (result != null && result['deleted'] == true) {
       await _historyService.removeHistory(post.id, item.type);
       _loadUserAndHistory();
@@ -987,8 +1010,11 @@ class _HistoryTabChip extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? AppColors.primary : context.textSecondaryColor,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primary
+                          : context.textSecondaryColor,
                     ),
                   ),
                   if (count > 0) ...[

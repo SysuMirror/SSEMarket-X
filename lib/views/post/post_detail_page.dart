@@ -19,6 +19,9 @@ import 'package:sse_market_x/shared/components/media/cached_image.dart';
 import 'package:sse_market_x/shared/components/overlays/custom_dialog.dart';
 import 'package:sse_market_x/shared/components/overlays/reply_modal.dart';
 import 'package:sse_market_x/shared/components/overlays/share_modal.dart';
+import 'package:sse_market_x/shared/components/presence/presence_badge.dart';
+import 'package:sse_market_x/shared/components/coin/coin_throw_dialog.dart';
+import 'package:sse_market_x/core/models/coin_model.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/profile/user_profile_page.dart';
@@ -35,6 +38,13 @@ class PostDetailPage extends StatefulWidget {
       onSendComment; // Custom comment send handler
   final String postType; // 'post' or 'rating'
 
+  // 打分帖子使用独立接口（/auth/rating/*）；为空时走普通帖子接口。
+  final Future<PostModel> Function(int postId, String userPhone)? loadPost;
+  final Future<List<CommentModel>> Function(int postId, String userPhone)?
+      loadComments;
+  final Future<bool> Function(int postId, String userPhone)? likePost;
+  final Future<bool> Function(int commentId, String userPhone)? likeComment;
+
   const PostDetailPage({
     super.key,
     required this.postId,
@@ -46,6 +56,10 @@ class PostDetailPage extends StatefulWidget {
     this.topContent,
     this.onSendComment,
     this.postType = 'post',
+    this.loadPost,
+    this.loadComments,
+    this.likePost,
+    this.likeComment,
   });
 
   @override
@@ -61,6 +75,8 @@ class _PostDetailPageState extends State<PostDetailPage>
   bool _isCommentsLoading = false;
   late bool _isLiked;
   late int _likeCount;
+  late int _coinCount;
+  late int _myCoins;
   late bool _isSaved;
   bool _hasChanges = false; // 标记是否有变化需要刷新上一页
   bool _isInWatchLater = false; // 是否已添加到稍后再看
@@ -87,6 +103,8 @@ class _PostDetailPageState extends State<PostDetailPage>
       _post = widget.initialPost!;
       _isLiked = widget.initialPost!.isLiked;
       _likeCount = widget.initialPost!.likeCount;
+      _coinCount = widget.initialPost!.coinCount;
+      _myCoins = widget.initialPost!.myCoins;
       _isSaved = widget.initialPost!.isSaved;
       _isLoading = false; // 有初始数据时不显示 loading
       _isCommentsLoading = true; // 评论正在加载，显示骨架屏
@@ -94,6 +112,8 @@ class _PostDetailPageState extends State<PostDetailPage>
       _post = PostModel.empty();
       _isLiked = false;
       _likeCount = 0;
+      _coinCount = 0;
+      _myCoins = 0;
       _isSaved = false;
       _isLoading = true; // 没有初始数据时显示 loading
       _isCommentsLoading = false; // 整个页面都在 loading，不需要单独显示评论 loading
@@ -356,8 +376,9 @@ class _PostDetailPageState extends State<PostDetailPage>
         });
       }
 
-      final post =
-          await widget.apiService.getPostDetail(widget.postId, user.phone);
+      final post = widget.loadPost != null
+          ? await widget.loadPost!(widget.postId, user.phone)
+          : await widget.apiService.getPostDetail(widget.postId, user.phone);
 
       if (!mounted) return;
 
@@ -384,6 +405,8 @@ class _PostDetailPageState extends State<PostDetailPage>
         _post = post;
         _isLiked = post.isLiked;
         _likeCount = post.likeCount;
+        _coinCount = post.coinCount;
+        _myCoins = post.myCoins;
         _isSaved = post.isSaved;
         _isWatchLaterEnabled = isWatchLaterEnabled;
         _isInWatchLater = isInWatchLater;
@@ -409,11 +432,13 @@ class _PostDetailPageState extends State<PostDetailPage>
     });
 
     try {
-      final comments = await widget.apiService.getComments(
-        widget.postId,
-        _user.phone,
-        postType: widget.postType,
-      );
+      final comments = widget.loadComments != null
+          ? await widget.loadComments!(widget.postId, _user.phone)
+          : await widget.apiService.getComments(
+              widget.postId,
+              _user.phone,
+              postType: widget.postType,
+            );
       if (!mounted) return;
 
       setState(() {
@@ -443,7 +468,9 @@ class _PostDetailPageState extends State<PostDetailPage>
     });
 
     try {
-      final success = await widget.apiService.likePost(_post.id, _user.phone);
+      final success = widget.likePost != null
+          ? await widget.likePost!(_post.id, _user.phone)
+          : await widget.apiService.likePost(_post.id, _user.phone);
 
       if (success) {
         _hasChanges = true; // 标记有变化
@@ -467,11 +494,9 @@ class _PostDetailPageState extends State<PostDetailPage>
   /// 分享帖子
   void _onSharePost() {
     if (_isLoading) return;
-    
-    final authorName = _post.authorName.isNotEmpty 
-        ? _post.authorName 
-        : '匿名用户';
-    
+
+    final authorName = _post.authorName.isNotEmpty ? _post.authorName : '匿名用户';
+
     showShareModal(
       context: context,
       postId: _post.id,
@@ -754,51 +779,61 @@ class _PostDetailPageState extends State<PostDetailPage>
                   )
                 : RefreshIndicator(
                     onRefresh: _loadPostDetail,
-                edgeOffset: topPadding,
-                color: AppColors.primary,
-                backgroundColor: context.surfaceColor,
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.only(
-                    top: topPadding,
-                    bottom: widget.previewPost == null ? 120 : 32,
-                  ),
-                  child: Column(
-                    children: [
-                      // 帖子内容区
-                      Container(
-                        color: context.surfaceColor,
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildUserInfo(),
-                            const SizedBox(height: 16),
-                            _buildTitle(),
-                            if (widget.topContent != null) ...[
-                              const SizedBox(height: 16),
-                              widget.topContent!,
-                            ],
-                            const SizedBox(height: 12),
-                            _buildContent(),
-                            if (widget.extraContent != null) ...[
-                              const SizedBox(height: 16),
-                              widget.extraContent!,
-                            ],
-                            if (widget.previewPost == null) ...[
-                              const SizedBox(height: 16),
-                              _buildActionBar(),
-                            ],
-                          ],
-                        ),
+                    edgeOffset: topPadding,
+                    color: AppColors.primary,
+                    backgroundColor: context.surfaceColor,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.only(
+                        top: topPadding,
+                        bottom: widget.previewPost == null ? 120 : 32,
                       ),
-                      // 评论区 (不在预览模式下显示)
-                      if (widget.previewPost == null) _buildCommentSection(),
-                    ],
+                      child: Column(
+                        children: [
+                          // 帖子内容区
+                          Container(
+                            color: context.surfaceColor,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildUserInfo(),
+                                const SizedBox(height: 16),
+                                _buildTitle(),
+                                const SizedBox(height: 8),
+                                PresenceBadge(
+                                  scene: 'post',
+                                  targetID: widget.postId,
+                                  label: widget.postType == 'rating'
+                                      ? '正在评分'
+                                      : '正在看',
+                                  compact: true,
+                                ),
+                                if (widget.topContent != null) ...[
+                                  const SizedBox(height: 16),
+                                  widget.topContent!,
+                                ],
+                                const SizedBox(height: 12),
+                                _buildContent(),
+                                if (widget.extraContent != null) ...[
+                                  const SizedBox(height: 16),
+                                  widget.extraContent!,
+                                ],
+                                if (widget.previewPost == null) ...[
+                                  const SizedBox(height: 16),
+                                  _buildActionBar(),
+                                ],
+                              ],
+                            ),
+                          ),
+                          // 评论区 (不在预览模式下显示)
+                          if (widget.previewPost == null)
+                            _buildCommentSection(),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
         bottomNavigationBar:
             widget.previewPost == null ? _buildBottomBar() : null,
       ),
@@ -967,6 +1002,16 @@ class _PostDetailPageState extends State<PostDetailPage>
           _buildMetaItem('assets/icons/ic_view.svg', _post.viewCount),
           _buildMetaItem('assets/icons/ic_comment.svg', _post.commentCount),
           GestureDetector(
+            onTap: _showCoinDialog,
+            child: _buildMetaIcon(
+              Icons.monetization_on_rounded,
+              _coinCount,
+              color: _myCoins > 0
+                  ? const Color(0xFFFFB020)
+                  : context.textSecondaryColor,
+            ),
+          ),
+          GestureDetector(
             onTap: _onLikeTap,
             child: _buildMetaItem(
               _isLiked
@@ -1003,6 +1048,56 @@ class _PostDetailPageState extends State<PostDetailPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMetaIcon(IconData icon, int count, {Color? color}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: color ?? context.textSecondaryColor,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 14,
+            color: color ?? context.textSecondaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showCoinDialog() async {
+    if (widget.postType == 'rating') {
+      // 打分帖暂不支持投币（后端 targetType 仅 post / novel）。
+      SnackBarHelper.show(context, '打分帖暂不支持投币');
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (_) => CoinThrowDialog(
+        apiService: widget.apiService,
+        targetType: 'post',
+        targetID: widget.postId,
+        myCoins: _myCoins,
+        coinCount: _coinCount,
+        onChanged: (CoinThrowResult result, {required bool cancelled}) {
+          if (!mounted) return;
+          setState(() {
+            _myCoins = result.total;
+            _coinCount =
+                (_coinCount + (cancelled ? -result.coins : result.coins))
+                    .clamp(0, 1 << 30)
+                    .toInt();
+          });
+          _hasChanges = true;
+        },
+      ),
     );
   }
 
@@ -1100,8 +1195,10 @@ class _PostDetailPageState extends State<PostDetailPage>
                     postId: widget.postId,
                     currentUserPhone: _user.phone,
                     onLikeTap: () async {
-                      return await widget.apiService
-                          .likeComment(comment.id, _user.phone);
+                      return widget.likeComment != null
+                          ? await widget.likeComment!(comment.id, _user.phone)
+                          : await widget.apiService
+                              .likeComment(comment.id, _user.phone);
                     },
                     onReplyTap: () {
                       _showReplyModal(comment.authorName, comment.id);

@@ -46,7 +46,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickAvatar() async {
     if (_isUploadingAvatar) return;
-    
+
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 2048, // 限制最大尺寸，避免超大图片
@@ -57,16 +57,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       // 读取图片字节
       final imageBytes = await image.readAsBytes();
-      
+
       if (!mounted) return;
-      
+
       // 打开裁剪页面
       final croppedBytes = await ImageCropperPage.show(
         context,
         imageBytes: imageBytes,
         aspectRatio: 1.0, // 头像使用1:1比例
       );
-      
+
       if (croppedBytes == null || !mounted) return;
 
       // 显示上传状态
@@ -75,7 +75,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // 上传裁剪后的图片
       final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.png';
       final url = await widget.apiService.uploadPhoto(croppedBytes, fileName);
-      
+
       if (url != null && mounted) {
         setState(() {
           _avatarUrl = url;
@@ -115,7 +115,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     // 如果头像、昵称、简介都没有任何变化，则不提交
-    if (_avatarUrl == originalAvatar && name == originalName && intro == originalIntro) {
+    if (_avatarUrl == originalAvatar &&
+        name == originalName &&
+        intro == originalIntro) {
       SnackBarHelper.show(context, '您还没有修改任何内容');
       return;
     }
@@ -144,7 +146,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       UserModel detailed = basic;
       if (basic.phone.isNotEmpty) {
         final d = await widget.apiService.getDetailedUserInfo(basic.phone);
-        detailed = basic.copyWith(score: d.score, intro: d.intro, avatar: d.avatar, name: d.name);
+        detailed = basic.copyWith(
+            score: d.score, intro: d.intro, avatar: d.avatar, name: d.name, customTitle: d.customTitle);
       }
 
       final storage = StorageService();
@@ -196,7 +199,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               '提交',
               style: TextStyle(
                 fontSize: 16,
-                color: _isSubmitting ? context.textSecondaryColor : AppColors.primary,
+                color: _isSubmitting
+                    ? context.textSecondaryColor
+                    : AppColors.primary,
               ),
             ),
           ),
@@ -219,15 +224,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   GestureDetector(
-                    onTap: (_isSubmitting || _isUploadingAvatar) ? null : _pickAvatar,
+                    onTap: (_isSubmitting || _isUploadingAvatar)
+                        ? null
+                        : _pickAvatar,
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 40,
                           backgroundColor: context.backgroundColor,
-                          backgroundImage: _avatarUrl.isNotEmpty ? NetworkImage(_avatarUrl) : null,
+                          backgroundImage: _avatarUrl.isNotEmpty
+                              ? NetworkImage(_avatarUrl)
+                              : null,
                           child: _avatarUrl.isEmpty
-                              ? Icon(Icons.person, size: 40, color: context.textSecondaryColor)
+                              ? Icon(Icons.person,
+                                  size: 40, color: context.textSecondaryColor)
                               : null,
                         ),
                         // 上传中遮罩
@@ -260,7 +270,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               decoration: BoxDecoration(
                                 color: AppColors.primary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: context.surfaceColor, width: 2),
+                                border: Border.all(
+                                    color: context.surfaceColor, width: 2),
                               ),
                               child: const Icon(
                                 Icons.camera_alt,
@@ -275,7 +286,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   const SizedBox(height: 8),
                   Text(
                     '点击修改头像',
-                    style: TextStyle(fontSize: 12, color: context.textSecondaryColor),
+                    style: TextStyle(
+                        fontSize: 12, color: context.textSecondaryColor),
                   ),
                 ],
               ),
@@ -303,25 +315,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: context.backgroundColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: TextField(
                       controller: _nameController,
-                      style: TextStyle(fontSize: 14, color: context.textPrimaryColor),
+                      style: TextStyle(
+                          fontSize: 14, color: context.textPrimaryColor),
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         hintText: '请输入昵称',
-                        hintStyle: TextStyle(fontSize: 14, color: context.textTertiaryColor),
+                        hintStyle: TextStyle(
+                            fontSize: 14, color: context.textTertiaryColor),
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   Text(
                     '个人简介',
                     style: TextStyle(
@@ -331,7 +344,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: context.backgroundColor,
                       borderRadius: BorderRadius.circular(8),
@@ -339,12 +353,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     child: TextField(
                       controller: _introController,
                       maxLines: 3,
-                      style: TextStyle(fontSize: 14, color: context.textPrimaryColor),
+                      style: TextStyle(
+                          fontSize: 14, color: context.textPrimaryColor),
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         hintText: '简单介绍一下自己吧',
-                        hintStyle: TextStyle(fontSize: 14, color: context.textTertiaryColor),
+                        hintStyle: TextStyle(
+                            fontSize: 14, color: context.textTertiaryColor),
                       ),
                     ),
                   ),

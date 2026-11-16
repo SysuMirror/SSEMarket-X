@@ -47,7 +47,7 @@ class _SideMenuState extends State<SideMenu> {
       final noticeNum = await widget.apiService.getNoticeNum();
       final noticeService = NoticeService();
       noticeService.updateUnreadCount(noticeNum.unreadTotalNum);
-      
+
       // 监听通知未读数变化
       _noticeUnreadSubscription?.cancel();
       _noticeUnreadSubscription = noticeService.unreadCount.listen((count) {
@@ -57,7 +57,7 @@ class _SideMenuState extends State<SideMenu> {
           });
         }
       });
-      
+
       if (mounted) {
         setState(() {
           _noticeUnreadCount = noticeNum.unreadTotalNum;
@@ -118,18 +118,29 @@ class _SideMenuState extends State<SideMenu> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
 
           // Menu Items
-          _buildMenuItem(0, '首页', iconSvg: 'assets/icons/home_normal.svg', iconSvgSelected: 'assets/icons/home_selected.svg'),
-          _buildMenuItem(1, '新建', iconData: Icons.add_circle_outline, iconDataSelected: Icons.add_circle),
-          _buildMenuItem(2, '打分', iconSvg: 'assets/icons/todo_normal_new.svg', iconSvgSelected: 'assets/icons/todo_selected_new.svg'),
-          _buildMenuItem(3, '闲置', iconSvg: 'assets/icons/shop_normal.svg', iconSvgSelected: 'assets/icons/shop_selected.svg'),
-          _buildMenuItem(4, '消息', iconSvg: 'assets/icons/notice_normal.svg', iconSvgSelected: 'assets/icons/notice_selected.svg', badgeCount: _noticeUnreadCount + _unreadCount),
-          
+          _buildMenuItem(0, '首页',
+              iconSvg: 'assets/icons/home_normal.svg',
+              iconSvgSelected: 'assets/icons/home_selected.svg'),
+          _buildMenuItem(1, '新建',
+              iconData: Icons.add_circle_outline,
+              iconDataSelected: Icons.add_circle),
+          _buildMenuItem(2, '小秋',
+              iconData: Icons.auto_awesome_outlined,
+              iconDataSelected: Icons.auto_awesome),
+          _buildMenuItem(3, '闲置',
+              iconSvg: 'assets/icons/shop_normal.svg',
+              iconSvgSelected: 'assets/icons/shop_selected.svg'),
+          _buildMenuItem(4, '消息',
+              iconSvg: 'assets/icons/notice_normal.svg',
+              iconSvgSelected: 'assets/icons/notice_selected.svg',
+              badgeCount: _noticeUnreadCount + _unreadCount),
+
           const Spacer(),
-          
+
           Divider(height: 1, color: context.dividerColor),
           // User Avatar / My Page - 响应用户信息变更
           ValueListenableBuilder<UserModel?>(
@@ -156,9 +167,11 @@ class _SideMenuState extends State<SideMenu> {
                                 height: 40,
                                 fit: BoxFit.cover,
                                 category: CacheCategory.avatar,
-                                errorWidget: Icon(Icons.person, color: context.textSecondaryColor),
+                                errorWidget: Icon(Icons.person,
+                                    color: context.textSecondaryColor),
                               )
-                            : Icon(Icons.person, color: context.textSecondaryColor),
+                            : Icon(Icons.person,
+                                color: context.textSecondaryColor),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -177,7 +190,7 @@ class _SideMenuState extends State<SideMenu> {
                             ),
                             if (user != null)
                               Text(
-                                LevelUtils.getLevelName(user.score),
+                                LevelUtils.getDisplayTitle(user.score, user.customTitle),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: context.textSecondaryColor,
@@ -197,7 +210,12 @@ class _SideMenuState extends State<SideMenu> {
     );
   }
 
-  Widget _buildMenuItem(int index, String label, {String? iconSvg, String? iconSvgSelected, IconData? iconData, IconData? iconDataSelected, int badgeCount = 0}) {
+  Widget _buildMenuItem(int index, String label,
+      {String? iconSvg,
+      String? iconSvgSelected,
+      IconData? iconData,
+      IconData? iconDataSelected,
+      int badgeCount = 0}) {
     final isSelected = widget.selectedIndex == index;
     return InkWell(
       onTap: () => widget.onItemTap(index),
@@ -221,7 +239,9 @@ class _SideMenuState extends State<SideMenu> {
                   Icon(
                     isSelected ? (iconDataSelected ?? iconData) : iconData,
                     size: 24,
-                    color: isSelected ? AppColors.primary : context.textSecondaryColor,
+                    color: isSelected
+                        ? AppColors.primary
+                        : context.textSecondaryColor,
                   ),
                 // 未读消息红点
                 if (badgeCount > 0)
@@ -229,12 +249,14 @@ class _SideMenuState extends State<SideMenu> {
                     right: -6,
                     top: -4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: AppColors.error,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 14),
                       child: Center(
                         child: Text(
                           badgeCount > 99 ? '99+' : '$badgeCount',
@@ -255,7 +277,8 @@ class _SideMenuState extends State<SideMenu> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppColors.primary : context.textPrimaryColor,
+                color:
+                    isSelected ? AppColors.primary : context.textPrimaryColor,
               ),
             ),
           ],

@@ -110,7 +110,8 @@ class PostPreviewCard extends StatelessWidget {
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color: LevelUtils.getIdentityBackgroundColor(user.identity),
+                      color:
+                          LevelUtils.getIdentityBackgroundColor(user.identity),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.5),
                     ),

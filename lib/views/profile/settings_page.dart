@@ -6,6 +6,10 @@ import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/watch_later_service.dart';
 import 'package:sse_market_x/core/services/blur_effect_service.dart';
 import 'package:sse_market_x/core/services/desktop_layout_preference_service.dart';
+import 'package:sse_market_x/core/services/new_posts_service.dart';
+import 'package:sse_market_x/core/services/notification_service.dart';
+import 'package:sse_market_x/core/skins/skin_models.dart';
+import 'package:sse_market_x/core/skins/skin_service.dart';
 import 'package:sse_market_x/shared/components/lists/settings_list_item.dart';
 import 'package:sse_market_x/shared/components/overlays/custom_dialog.dart';
 import 'package:sse_market_x/shared/components/utils/snackbar_helper.dart';
@@ -31,7 +35,8 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // bool _isNotificationEnabled = true; // TODO: 推送通知功能待实现
+  bool _isNotificationEnabled = true;
+  bool _systemNotificationsEnabled = false;
   bool _isEmailNotificationEnabled = false;
   // bool _isAutoPlay = true; // TODO: 自动播放功能待实现
   bool _isWatchLaterEnabled = false;
@@ -53,6 +58,62 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadEmailPushStatus();
     _loadWatchLaterStatus();
     _loadBlurEffectStatus();
+    _loadNotificationStatus();
+    _loadNotificationPermission();
+  }
+
+  void _loadNotificationStatus() {
+    setState(() {
+      _isNotificationEnabled = NewPostsService().isEnabled;
+    });
+  }
+
+  Future<void> _loadNotificationPermission() async {
+    final enabled = await NotificationService().areNotificationsEnabled();
+    if (mounted) {
+      setState(() => _systemNotificationsEnabled = enabled);
+    }
+  }
+
+  Future<void> _sendTestNotification() async {
+    final service = NotificationService();
+    var enabled = await service.areNotificationsEnabled();
+    if (!enabled) {
+      enabled = await service.requestPermission();
+    }
+    if (!enabled) {
+      if (mounted) {
+        SnackBarHelper.show(context, '系统通知权限未开启，请到系统设置中允许通知');
+        await service.openSystemSettings();
+      }
+      return;
+    }
+    final ok = await service.showTestNotification();
+    if (!mounted) return;
+    await _loadNotificationPermission();
+    SnackBarHelper.show(
+      context,
+      ok ? '已发送测试通知，请查看通知栏' : '发送失败，请检查系统通知权限',
+    );
+  }
+
+  Future<void> _toggleNotification(bool value) async {
+    final service = NewPostsService();
+    final ok = await service.setEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _isNotificationEnabled = service.isEnabled;
+    });
+    await _loadNotificationPermission();
+    if (!mounted) return;
+    if (value && !ok) {
+      SnackBarHelper.show(context, '未获得通知权限，请在系统设置中允许通知');
+    } else {
+      SnackBarHelper.show(
+        context,
+        value ? '已开启新帖通知' : '已关闭新帖通知',
+      );
+    }
   }
 
   Future<void> _loadWatchLaterStatus() async {
@@ -126,19 +187,24 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildSectionTitle('通知设置'),
             SettingsListGroup(
               children: [
-                // TODO: 推送通知功能待实现
-                // SettingsListItem(
-                //   title: '推送通知',
-                //   subtitle: '接收新消息通知',
-                //   type: SettingsListItemType.toggle,
-                //   switchValue: _isNotificationEnabled,
-                //   onSwitchChanged: (val) {
-                //     setState(() {
-                //       _isNotificationEnabled = val;
-                //     });
-                //   },
-                //   isFirst: true,
-                // ),
+                SettingsListItem(
+                  title: '新帖通知',
+                  subtitle: '有新帖子时发送系统通知，App 内也会显示横幅',
+                  leadingIcon: 'assets/icons/ic_notifications.svg',
+                  type: SettingsListItemType.toggle,
+                  switchValue: _isNotificationEnabled,
+                  onSwitchChanged: _toggleNotification,
+                  isFirst: true,
+                ),
+                SettingsListItem(
+                  title: '发送测试通知',
+                  subtitle: _systemNotificationsEnabled
+                      ? '系统通知已开启，点此发送一条测试通知'
+                      : '系统通知未开启，点此申请权限或去系统设置',
+                  leadingIcon: 'assets/icons/ic_notifications.svg',
+                  type: SettingsListItemType.navigation,
+                  onTap: _sendTestNotification,
+                ),
                 SettingsListItem(
                   title: '邮箱通知',
                   subtitle: '接收回复、私信等的邮箱通知',
@@ -148,11 +214,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   onSwitchChanged: (val) {
                     _toggleEmailNotification(val);
                   },
-                  isFirst: true,
                   isLast: true,
                 ),
               ],
             ),
+            _buildSectionTitle('外观与皮肤'),
+            _buildSkinSection(),
             // TODO: 自动播放功能待实现
             // _buildSectionTitle('媒体设置'),
             // SettingsListGroup(
@@ -337,6 +404,256 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) {
       SnackBarHelper.show(context, '已恢复默认多栏宽度');
     }
+  }
+
+  Widget _buildSkinSection() {
+    final skin = SkinService();
+    return AnimatedBuilder(
+      animation: skin,
+      builder: (context, _) {
+        final prefs = skin.prefs;
+        final active = skin.activeSkin;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+          decoration: BoxDecoration(
+            color: context.surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '当前皮肤：${active?.name ?? '默认'}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.textPrimaryColor,
+                      ),
+                    ),
+                  ),
+                  if (skin.loading)
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                ],
+              ),
+              if (active != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  active.description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.textTertiaryColor,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _skinModeChip(
+                    label: '自动（跟随活动）',
+                    mode: 'auto',
+                    selected: prefs.themeMode == 'auto',
+                    onSelected: () => _updateSkinPrefs(
+                      prefs.copyWith(themeMode: 'auto'),
+                    ),
+                  ),
+                  _skinModeChip(
+                    label: '默认',
+                    mode: 'default',
+                    selected: prefs.themeMode == 'default',
+                    onSelected: () => _updateSkinPrefs(
+                      prefs.copyWith(themeMode: 'default'),
+                    ),
+                  ),
+                  for (final s in skinList)
+                    _skinModeChip(
+                      label: s.name,
+                      mode: s.id,
+                      selected: prefs.themeMode == s.id,
+                      onSelected: () => _updateSkinPrefs(
+                        prefs.copyWith(themeMode: s.id),
+                      ),
+                    ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  '开场画面',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+                subtitle: Text(
+                  '进入 App 时展示一次当前皮肤的开场图',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.textTertiaryColor,
+                  ),
+                ),
+                value: prefs.splashEnabled,
+                onChanged: (v) => _updateSkinPrefs(
+                  prefs.copyWith(splashEnabled: v),
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  '皮肤背景',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+                subtitle: Text(
+                  '关闭后页面使用默认纯色背景',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.textTertiaryColor,
+                  ),
+                ),
+                value: prefs.backgroundEnabled,
+                onChanged: (v) => _updateSkinPrefs(
+                  prefs.copyWith(backgroundEnabled: v),
+                ),
+              ),
+              if (prefs.backgroundEnabled) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      '背景来源',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ChoiceChip(
+                      label: const Text('皮肤内置', style: TextStyle(fontSize: 11)),
+                      selected: prefs.backgroundSource == 'default',
+                      onSelected: (_) => _updateSkinPrefs(
+                        prefs.copyWith(backgroundSource: 'default'),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label:
+                          const Text('自定义图片', style: TextStyle(fontSize: 11)),
+                      selected: prefs.backgroundSource == 'custom',
+                      onSelected: (_) async {
+                        if (prefs.backgroundSource != 'custom') {
+                          await _updateSkinPrefs(
+                            prefs.copyWith(backgroundSource: 'custom'),
+                          );
+                        }
+                        if (!mounted) return;
+                        await _editCustomBackground();
+                      },
+                    ),
+                  ],
+                ),
+                if (prefs.backgroundSource == 'custom')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      prefs.customBackgroundUrl.isEmpty
+                          ? '尚未设置图片地址'
+                          : prefs.customBackgroundUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: context.textTertiaryColor,
+                      ),
+                    ),
+                  ),
+              ],
+              if (active != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: skin.previewSplash,
+                    child: const Text('预览开场画面'),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _skinModeChip({
+    required String label,
+    required String mode,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+    );
+  }
+
+  Future<void> _updateSkinPrefs(ThemeSettings next) async {
+    final result = await SkinService().updatePrefs(next);
+    if (!result.ok && mounted) {
+      SnackBarHelper.show(context, result.msg);
+    }
+  }
+
+  Future<void> _editCustomBackground() async {
+    final controller = TextEditingController(
+      text: SkinService().prefs.customBackgroundUrl,
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('自定义背景图片'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: 'https://example.com/background.jpg',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result.isNotEmpty &&
+        !result.startsWith('https://') &&
+        !result.startsWith('http://')) {
+      SnackBarHelper.show(context, '背景图片必须是 http(s) 地址');
+      return;
+    }
+    await _updateSkinPrefs(
+      SkinService().prefs.copyWith(customBackgroundUrl: result),
+    );
   }
 
   Widget _buildSectionTitle(String title) {

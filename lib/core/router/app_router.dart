@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sse_market_x/core/api/api_service.dart';
 import 'package:sse_market_x/core/services/storage_service.dart';
+import 'package:sse_market_x/core/app_navigator.dart';
 import 'package:sse_market_x/views/auth/login_page.dart';
 import 'package:sse_market_x/views/index_page.dart';
 import 'package:sse_market_x/views/post/post_detail_page.dart';
 import 'package:sse_market_x/views/home/annual_report_page.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-
 final GoRouter appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
+  navigatorKey: appNavigatorKey,
   initialLocation: '/',
   refreshListenable: StorageService().userNotifier,
   redirect: (BuildContext context, GoRouterState state) {
@@ -20,7 +19,7 @@ final GoRouter appRouter = GoRouter(
     if (!isLoggedIn) {
       // Allow access to login page
       if (isLoggingIn) return null;
-      
+
       // Redirect to login page for other routes, saving connection
       // We use uri.toString() to capture query params as well
       return '/login?redirect=${Uri.encodeComponent(state.uri.toString())}';
@@ -30,8 +29,8 @@ final GoRouter appRouter = GoRouter(
     if (isLoggingIn) {
       // Check if there is a redirect param
       final redirect = state.uri.queryParameters['redirect'];
-      if(redirect != null && redirect.isNotEmpty) {
-         return redirect;
+      if (redirect != null && redirect.isNotEmpty) {
+        return redirect;
       }
       return '/';
     }

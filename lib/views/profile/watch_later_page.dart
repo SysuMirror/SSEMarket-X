@@ -22,11 +22,11 @@ class WatchLaterPage extends StatefulWidget {
 
 class _WatchLaterPageState extends State<WatchLaterPage> {
   final WatchLaterService _watchLaterService = WatchLaterService();
-  
+
   List<WatchLaterItem> _items = [];
   UserModel _user = UserModel.empty();
   bool _isLoading = false;
-  
+
   // 选择模式相关
   bool _isSelectionMode = false;
   final Set<int> _selectedItems = {}; // 使用 postId 作为唯一标识
@@ -45,7 +45,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
     try {
       final user = await widget.apiService.getUserInfo();
       final items = await _watchLaterService.getItems();
-      
+
       if (mounted) {
         setState(() {
           _user = user;
@@ -75,7 +75,8 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
 
   void _selectAll() {
     setState(() {
-      final allSelected = _items.every((item) => _selectedItems.contains(item.postId));
+      final allSelected =
+          _items.every((item) => _selectedItems.contains(item.postId));
       if (allSelected) {
         _selectedItems.clear();
       } else {
@@ -135,7 +136,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
     if (confirmed == true) {
       await _watchLaterService.clearAll();
       _loadData();
-      
+
       if (mounted) {
         SnackBarHelper.show(context, '已清空');
       }
@@ -156,7 +157,9 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
             _isSelectionMode ? Icons.close : Icons.arrow_back,
             color: context.textPrimaryColor,
           ),
-          onPressed: _isSelectionMode ? _cancelSelection : () => Navigator.of(context).pop(),
+          onPressed: _isSelectionMode
+              ? _cancelSelection
+              : () => Navigator.of(context).pop(),
         ),
         title: Text(
           _isSelectionMode ? '已选择 ${_selectedItems.length} 项' : '稍后再看',
@@ -238,7 +241,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
             ),
           ),
         if (!_isSelectionMode) Divider(height: 1, color: context.dividerColor),
-        
+
         // 列表内容
         Expanded(
           child: _items.isEmpty
@@ -262,7 +265,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
     // 检查是否需要显示"更早添加的帖子"分隔线
     final now = DateTime.now();
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    
+
     for (int i = 0; i < _items.length; i++) {
       if (_items[i].addedAt.isBefore(sevenDaysAgo)) {
         return 1; // 需要显示一个分隔线
@@ -274,11 +277,11 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
   Widget _buildItem(int index) {
     final now = DateTime.now();
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    
+
     // 检查是否需要在此位置显示分隔线
     int actualIndex = index;
     bool showDivider = false;
-    
+
     if (_getOlderSectionCount() > 0) {
       for (int i = 0; i < _items.length; i++) {
         if (_items[i].addedAt.isBefore(sevenDaysAgo)) {
@@ -292,15 +295,15 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
         }
       }
     }
-    
+
     if (showDivider) {
       return _buildOlderDivider();
     }
-    
+
     if (actualIndex >= _items.length) {
       return const SizedBox.shrink();
     }
-    
+
     final item = _items[actualIndex];
     return _buildPostItem(item);
   }
@@ -331,7 +334,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
   Widget _buildPostItem(WatchLaterItem item) {
     final isSelected = _selectedItems.contains(item.postId);
     final addedTime = _formatAddedTime(item.addedAt);
-    
+
     return GestureDetector(
       onLongPress: () {
         if (!_isSelectionMode) {
@@ -347,13 +350,14 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
               PostCard(
                 post: item.post,
                 hidePartition: true,
-                onTap: _isSelectionMode 
-                    ? null 
+                onTap: _isSelectionMode
+                    ? null
                     : () => _navigateToPostDetail(item.post),
-                onLikeTap: _isSelectionMode 
-                    ? null 
+                onLikeTap: _isSelectionMode
+                    ? null
                     : () async {
-                        return await widget.apiService.likePost(item.post.id, _user.phone);
+                        return await widget.apiService
+                            .likePost(item.post.id, _user.phone);
                       },
               ),
               // 添加时间提示 - 优化样式
@@ -390,7 +394,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
           if (_isSelectionMode)
             Positioned.fill(
               child: Container(
-                color: isSelected 
+                color: isSelected
                     ? AppColors.primary.withOpacity(0.1)
                     : Colors.transparent,
               ),
@@ -406,7 +410,8 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
                   color: isSelected ? AppColors.primary : context.surfaceColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : context.dividerColor,
+                    color:
+                        isSelected ? AppColors.primary : context.dividerColor,
                     width: 2,
                   ),
                   boxShadow: [
@@ -430,7 +435,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
   String _formatAddedTime(DateTime addedAt) {
     final now = DateTime.now();
     final difference = now.difference(addedAt);
-    
+
     if (difference.inMinutes < 1) {
       return '刚刚添加';
     } else if (difference.inHours < 1) {
@@ -535,7 +540,7 @@ class _WatchLaterPageState extends State<WatchLaterPage> {
         ),
       ),
     );
-    
+
     // 如果帖子被删除，从列表中移除
     if (result != null && result['deleted'] == true) {
       await _watchLaterService.removeItem(post.id);

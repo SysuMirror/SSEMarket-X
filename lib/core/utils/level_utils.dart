@@ -14,6 +14,13 @@ class LevelUtils {
     return '祖师爷';
   }
 
+  /// 满级（>=5000）且设置过自定义称号时显示自定义称号，否则显示等级名。
+  static String getDisplayTitle(int userScore, [String customTitle = '']) {
+    final title = customTitle.trim();
+    if (userScore >= 5000 && title.isNotEmpty) return title;
+    return getLevelName(userScore);
+  }
+
   /// 获取等级颜色
   static Color getLevelColor(int userScore) {
     if (userScore < 100) return const Color(0xFF18B5CA);

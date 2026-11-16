@@ -31,7 +31,7 @@ class TimeUtils {
       if (date.year != now.year) {
         return '${date.year}年${date.month}月${date.day}日';
       }
-      
+
       // 同一年只显示月日
       return '${date.month}月${date.day}日';
     } catch (e) {
@@ -71,5 +71,4 @@ class TimeUtils {
       return timeStr;
     }
   }
-
 }

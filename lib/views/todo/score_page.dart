@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sse_market_x/core/api/api_service.dart';
 import 'package:sse_market_x/core/models/post_model.dart';
 import 'package:sse_market_x/core/services/browse_history_service.dart';
-import 'package:sse_market_x/core/services/storage_service.dart';
 import 'package:sse_market_x/core/services/blur_effect_service.dart';
 import 'package:sse_market_x/shared/components/cards/rating_card.dart';
 import 'package:sse_market_x/shared/components/layout/layout_config.dart';
@@ -21,10 +20,16 @@ class ScorePage extends StatefulWidget {
     super.key,
     required this.apiService,
     this.onPostTap,
+    this.embedded = false,
+    this.embeddedTopPadding = 0,
   });
 
   final ApiService apiService;
   final Function(int postId)? onPostTap;
+
+  /// 作为首页「打分」分区嵌入时，不渲染自己的 Scaffold/AppBar。
+  final bool embedded;
+  final double embeddedTopPadding;
 
   @override
   State<ScorePage> createState() => _ScorePageState();
@@ -58,7 +63,7 @@ class _ScorePageState extends State<ScorePage> {
   Future<void> _loadInitialPosts() async {
     // 尝试从缓存加载
     await _loadCachedPosts();
-    
+
     // 后台静默刷新或首次加载
     if (_hasLoadedOnce) {
       _fetchPosts(refresh: true, silent: true);
@@ -67,17 +72,18 @@ class _ScorePageState extends State<ScorePage> {
       _fetchPosts(refresh: true, forceLoad: true);
     }
   }
-  
+
   /// 从本地缓存加载帖子列表
   Future<void> _loadCachedPosts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString('score_posts_cache');
-      
+
       if (cachedJson != null && cachedJson.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(cachedJson);
-        final cachedPosts = jsonList.map((json) => PostModel.fromDynamic(json)).toList();
-        
+        final cachedPosts =
+            jsonList.map((json) => PostModel.fromDynamic(json)).toList();
+
         if (cachedPosts.isNotEmpty && mounted) {
           setState(() {
             _posts = cachedPosts;
@@ -88,14 +94,14 @@ class _ScorePageState extends State<ScorePage> {
           return;
         }
       }
-      
+
       // 没有缓存，不设置 _isLoading，让后续的 _fetchPosts 正常执行
     } catch (e) {
       debugPrint('加载缓存打分帖子失败: $e');
       // 加载失败，不设置 _isLoading，让后续的 _fetchPosts 正常执行
     }
   }
-  
+
   /// 保存帖子列表到本地缓存
   Future<void> _saveCachedPosts(List<PostModel> posts) async {
     try {
@@ -118,7 +124,10 @@ class _ScorePageState extends State<ScorePage> {
     }
   }
 
-  Future<void> _fetchPosts({required bool refresh, bool silent = false, bool forceLoad = false}) async {
+  Future<void> _fetchPosts(
+      {required bool refresh,
+      bool silent = false,
+      bool forceLoad = false}) async {
     // 如果正在加载且不是静默模式且不是强制加载，则跳过
     if (_isLoading && !silent && !forceLoad) return;
 
@@ -133,25 +142,18 @@ class _ScorePageState extends State<ScorePage> {
     }
 
     try {
-      final userPhone = StorageService().user?.phone ?? '';
-      final params = GetPostsParams(
+      // 新版打分系统：/auth/rating/post/list（旧 browse 的「打分」分区已不再返回数据）
+      final list = await widget.apiService.getRatingPosts(
         limit: _pageSize,
         offset: _offset,
-        partition: '打分',
-        searchsort: 'rating',
-        searchinfo: '',
-        userTelephone: userPhone,
-        tag: '',
       );
-
-      final list = await widget.apiService.getPosts(params);
 
       if (!mounted) return;
 
       // 静默刷新：比较新旧数据
       int newCount = 0;
       List<PostModel> finalPosts;
-      
+
       if (silent && refresh && _posts.isNotEmpty) {
         final existingIds = _posts.map((p) => p.id).toSet();
         newCount = list.where((p) => !existingIds.contains(p.id)).length;
@@ -168,7 +170,7 @@ class _ScorePageState extends State<ScorePage> {
         _hasLoadedOnce = true;
         _newPostsCount = newCount;
       });
-      
+
       // 保存到缓存（仅在正常刷新时）
       if (!silent && refresh) {
         _saveCachedPosts(finalPosts);
@@ -191,7 +193,15 @@ class _ScorePageState extends State<ScorePage> {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + kToolbarHeight;
-    final bottomPadding = kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
+    final bottomPadding =
+        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
+
+    if (widget.embedded) {
+      return _buildBody(
+        widget.embeddedTopPadding,
+        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom,
+      );
+    }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -202,7 +212,7 @@ class _ScorePageState extends State<ScorePage> {
           builder: (context, isBlurEnabled, _) {
             Widget content = Container(
               decoration: BoxDecoration(
-                color: isBlurEnabled 
+                color: isBlurEnabled
                     ? context.blurBackgroundColor.withOpacity(0.82)
                     : context.surfaceColor,
                 border: Border(
@@ -213,7 +223,7 @@ class _ScorePageState extends State<ScorePage> {
                 ),
               ),
             );
-            
+
             if (isBlurEnabled) {
               return ClipRect(
                 child: BackdropFilter(
@@ -240,8 +250,8 @@ class _ScorePageState extends State<ScorePage> {
             child: IconButton(
               icon: const Icon(Icons.add, color: AppColors.primary),
               tooltip: '发布打分帖子',
-              onPressed: () {
-                Navigator.of(context).push(
+              onPressed: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => CreatePostPage(
                       apiService: widget.apiService,
@@ -249,6 +259,7 @@ class _ScorePageState extends State<ScorePage> {
                     ),
                   ),
                 );
+                if (mounted) _fetchPosts(refresh: true);
               },
             ),
           ),
@@ -285,7 +296,8 @@ class _ScorePageState extends State<ScorePage> {
               children: [
                 Text(
                   '暂无打分数据',
-                  style: TextStyle(color: context.textSecondaryColor, fontSize: 16),
+                  style: TextStyle(
+                      color: context.textSecondaryColor, fontSize: 16),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -310,92 +322,95 @@ class _ScorePageState extends State<ScorePage> {
       child: Stack(
         children: [
           ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.only(top: topPadding + 8, bottom: bottomPadding + 16),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _posts.length + 1,
-        itemBuilder: (context, index) {
-          if (index < _posts.length) {
-            final post = _posts[index];
-            return RatingCard(
-              post: post,
-              isDense: true,
-              onTap: () async {
-                // 添加到浏览历史（在点击时记录）
-                // 确保 partition 字段是"打分"
-                final postWithPartition = PostModel(
-                  id: post.id,
-                  title: post.title,
-                  content: post.content,
-                  partition: '打分', // 明确设置为"打分"
-                  authorName: post.authorName,
-                  authorAvatar: post.authorAvatar,
-                  authorPhone: post.authorPhone,
-                  createdAt: post.createdAt,
-                  likeCount: post.likeCount,
-                  commentCount: post.commentCount,
-                  saveCount: post.saveCount,
-                  viewCount: post.viewCount,
-                  userScore: post.userScore,
-                  userIdentity: post.userIdentity,
-                  isLiked: post.isLiked,
-                  isSaved: post.isSaved,
-                  rating: post.rating,
-                  stars: post.stars,
-                  userRating: post.userRating,
-                  heat: post.heat,
-                );
-                BrowseHistoryService().addPostHistory(postWithPartition);
-                
-                final layoutConfig = LayoutConfig.of(context);
-                final onPostTap = layoutConfig?.onPostTap;
-                
-                if (onPostTap != null) {
-                  // 多栏模式下，直接调用回调
-                  onPostTap(post.id, isScorePost: true);
-                  return;
-                }
+            controller: _scrollController,
+            padding: EdgeInsets.only(
+                top: topPadding + 8, bottom: bottomPadding + 16),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: _posts.length + 1,
+            itemBuilder: (context, index) {
+              if (index < _posts.length) {
+                final post = _posts[index];
+                return RatingCard(
+                  post: post,
+                  isDense: true,
+                  onTap: () async {
+                    // 添加到浏览历史（在点击时记录）
+                    // 确保 partition 字段是"打分"
+                    final postWithPartition = PostModel(
+                      id: post.id,
+                      title: post.title,
+                      content: post.content,
+                      partition: '打分', // 明确设置为"打分"
+                      authorName: post.authorName,
+                      authorAvatar: post.authorAvatar,
+                      authorPhone: post.authorPhone,
+                      createdAt: post.createdAt,
+                      likeCount: post.likeCount,
+                      commentCount: post.commentCount,
+                      saveCount: post.saveCount,
+                      viewCount: post.viewCount,
+                      userScore: post.userScore,
+                      userIdentity: post.userIdentity,
+                      isLiked: post.isLiked,
+                      isSaved: post.isSaved,
+                      rating: post.rating,
+                      stars: post.stars,
+                      userRating: post.userRating,
+                      heat: post.heat,
+                      coinCount: post.coinCount,
+                      myCoins: post.myCoins,
+                    );
+                    BrowseHistoryService().addPostHistory(postWithPartition);
 
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ScorePostDetailPage(
-                      postId: post.id,
-                      apiService: widget.apiService,
-                      initialPost: post,
+                    final layoutConfig = LayoutConfig.of(context);
+                    final onPostTap = layoutConfig?.onPostTap;
+
+                    if (onPostTap != null) {
+                      // 多栏模式下，直接调用回调
+                      onPostTap(post.id, isScorePost: true);
+                      return;
+                    }
+
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ScorePostDetailPage(
+                          postId: post.id,
+                          apiService: widget.apiService,
+                          initialPost: post,
+                        ),
+                      ),
+                    );
+                    // 返回后刷新列表
+                    _fetchPosts(refresh: true);
+                  },
+                  onLikeTap: () async {
+                    return await widget.apiService.likeRatingPost(post.id);
+                  },
+                );
+              }
+
+              // Loading footer
+              if (_isLoading && !_isRefreshing) {
+                return const LoadingRow(message: '加载更多...', size: 16);
+              }
+
+              // No more data footer
+              if (!_hasMore && _posts.isNotEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      '已经到底啦',
+                      style: TextStyle(
+                          fontSize: 12, color: context.textSecondaryColor),
                     ),
                   ),
                 );
-                // 返回后刷新列表
-                _fetchPosts(refresh: true);
-              },
-              onLikeTap: () async {
-                final userPhone = StorageService().user?.phone ?? '';
-                return await widget.apiService.likePost(post.id, userPhone);
-              },
-            );
-          }
-          
-          // Loading footer
-          if (_isLoading && !_isRefreshing) {
-            return const LoadingRow(message: '加载更多...', size: 16);
-          }
-          
-          // No more data footer
-          if (!_hasMore && _posts.isNotEmpty) {
-             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: Text(
-                  '已经到底啦',
-                  style: TextStyle(fontSize: 12, color: context.textSecondaryColor),
-                ),
-              ),
-            );
-          }
-          
-          return const SizedBox.shrink();
-        },
-      ),
+              }
+
+              return const SizedBox.shrink();
+            },
+          ),
           // 新帖子提示条
           if (_newPostsCount > 0)
             Positioned(
@@ -408,7 +423,7 @@ class _ScorePageState extends State<ScorePage> {
       ),
     );
   }
-  
+
   /// 新帖子提示条
   Widget _buildNewPostsIndicator(int count) {
     return Center(

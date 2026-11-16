@@ -11,7 +11,8 @@ class RegisterPage extends StatefulWidget {
   final ApiService apiService;
   final bool fromLogin;
 
-  const RegisterPage({super.key, required this.apiService, this.fromLogin = false});
+  const RegisterPage(
+      {super.key, required this.apiService, this.fromLogin = false});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -20,16 +21,16 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   int _currentStep = 1;
   bool _isLoading = false;
-  
+
   // Step 1
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _cdKeyController = TextEditingController();
-  
+
   // Step 2
   final TextEditingController _valiCodeController = TextEditingController();
   Timer? _countdownTimer;
   int _countdown = 0;
-  
+
   // Step 3
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -65,7 +66,8 @@ class _RegisterPageState extends State<RegisterPage> {
       _isLoading = true;
     });
 
-    final result = await widget.apiService.sendCode(_emailController.text.trim(), 0); // 0: Register
+    final result = await widget.apiService
+        .sendCode(_emailController.text.trim(), 0); // 0: Register
 
     if (mounted) {
       setState(() {
@@ -337,7 +339,10 @@ class _RegisterPageState extends State<RegisterPage> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: (_emailController.text.trim().isNotEmpty && _cdKeyController.text.trim().isNotEmpty) ? _sendCode : null,
+            onPressed: (_emailController.text.trim().isNotEmpty &&
+                    _cdKeyController.text.trim().isNotEmpty)
+                ? _sendCode
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
@@ -440,13 +445,15 @@ class _RegisterPageState extends State<RegisterPage> {
               child: SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _valiCodeController.text.trim().isNotEmpty ? _verifyCode : null,
+                  onPressed: _valiCodeController.text.trim().isNotEmpty
+                      ? _verifyCode
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-              disabledForegroundColor: Colors.white.withOpacity(0.6),
-              foregroundColor: Colors.white,
-              elevation: 0,
+                    disabledForegroundColor: Colors.white.withOpacity(0.6),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -528,9 +535,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-              disabledForegroundColor: Colors.white.withOpacity(0.6),
-              foregroundColor: Colors.white,
-              elevation: 0,
+                    disabledForegroundColor: Colors.white.withOpacity(0.6),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -576,12 +583,14 @@ class _RegisterPageState extends State<RegisterPage> {
             style: TextStyle(color: context.textPrimaryColor, fontSize: 15),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: context.textTertiaryColor, fontSize: 15),
+              hintStyle:
+                  TextStyle(color: context.textTertiaryColor, fontSize: 15),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12),
                 child: Icon(icon, color: context.textTertiaryColor, size: 20),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
               filled: true,
               fillColor: context.inputFillColor,
               border: OutlineInputBorder(
@@ -594,7 +603,8 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             ),

@@ -123,64 +123,64 @@ class _TeacherDropdownState extends State<TeacherDropdown> {
                           final option = widget.options[index];
                           final isSelected = option.value == widget.value;
                           return InkWell(
-                          onTap: () {
-                            widget.onChanged?.call(option.value);
-                            _removeOverlay();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            color: isSelected
-                                ? AppColors.primary.withOpacity(0.08)
-                                : null,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    option.label,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : context.textPrimaryColor,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w500
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                                if (widget.showCount && option.count != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: context.backgroundColor,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                            onTap: () {
+                              widget.onChanged?.call(option.value);
+                              _removeOverlay();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              color: isSelected
+                                  ? AppColors.primary.withOpacity(0.08)
+                                  : null,
+                              child: Row(
+                                children: [
+                                  Expanded(
                                     child: Text(
-                                      '${option.count}',
+                                      option.label,
                                       style: TextStyle(
-                                        fontSize: 11,
-                                        color: context.textTertiaryColor,
+                                        fontSize: 14,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : context.textPrimaryColor,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w500
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ),
-                                if (isSelected) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.check_rounded,
-                                    size: 16,
-                                    color: AppColors.primary,
-                                  ),
+                                  if (widget.showCount && option.count != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.backgroundColor,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${option.count}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: context.textTertiaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                        );
+                          );
                         },
                       ),
                     ),
@@ -204,7 +204,7 @@ class _TeacherDropdownState extends State<TeacherDropdown> {
   @override
   Widget build(BuildContext context) {
     final hasValue = widget.value != null;
-    
+
     return CompositedTransformTarget(
       link: _layerLink,
       child: GestureDetector(

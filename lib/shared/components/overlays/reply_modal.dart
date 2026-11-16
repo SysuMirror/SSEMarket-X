@@ -44,7 +44,7 @@ class _ReplyModalState extends State<ReplyModal> {
       decoration: BoxDecoration(
         color: context.surfaceColor,
         // 如果是 Dialog 模式，四周圆角；否则只有顶部圆角
-        borderRadius: widget.isDialog 
+        borderRadius: widget.isDialog
             ? BorderRadius.circular(16)
             : const BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -115,7 +115,7 @@ class _ReplyModalState extends State<ReplyModal> {
       if (user == null) return false;
 
       bool success;
-      
+
       if (widget.parentCommentId != null) {
         // 回复评论（子评论）
         success = await widget.apiService.sendSubComment(
@@ -138,7 +138,7 @@ class _ReplyModalState extends State<ReplyModal> {
         _closedBySend = true;
         Navigator.of(context).pop(true); // 返回成功标识
       }
-      
+
       return success;
     } catch (e) {
       return false;

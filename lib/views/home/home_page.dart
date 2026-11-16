@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,9 @@ import 'package:sse_market_x/shared/components/loading/skeleton_loader.dart';
 import 'package:sse_market_x/shared/components/cards/post_card.dart';
 import 'package:sse_market_x/shared/theme/app_colors.dart';
 import 'package:sse_market_x/views/profile/user_profile_page.dart';
+import 'package:sse_market_x/views/todo/score_page.dart';
+import 'package:sse_market_x/views/miniprogram/mini_program_pull_down.dart';
+import 'package:sse_market_x/views/miniprogram/mini_program_drawer.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -26,6 +30,9 @@ class HomePage extends StatefulWidget {
     this.showHeaderAddButton = true,
     this.onPostTap,
     this.onAvatarTap,
+    this.onMiniProgramsPullDown,
+    this.onXiaoQiuTap,
+    this.onPanelOpenChanged,
   });
 
   final ApiService apiService;
@@ -33,6 +40,15 @@ class HomePage extends StatefulWidget {
   final bool showHeaderAddButton;
   final Function(int postId)? onPostTap;
   final VoidCallback? onAvatarTap;
+
+  /// 首页下拉手势触发：打开微信式小程序面板。
+  final VoidCallback? onMiniProgramsPullDown;
+
+  /// 主站功能「小秋」入口。
+  final VoidCallback? onXiaoQiuTap;
+
+  /// 小程序下拉面板展开/收起（用于移动端隐藏底部导航，让面板占满整屏）。
+  final ValueChanged<bool>? onPanelOpenChanged;
 
   @override
   State<HomePage> createState() => HomePageState();
@@ -61,38 +77,40 @@ class _PartitionState {
 class HomePageState extends State<HomePage> {
   static const int _pageSize = 10;
 
-  /// 显示名称分区列表
-  /// 院务 -> 院务
-  /// 教师 -> 课程专区（特殊处理，使用独立页面）
-  /// 课程 -> 课程交流
-  /// 学习解惑 -> 学习交流
-  /// 打听求助 -> 打听求助
-  /// 随想随记 -> 日常吐槽
-  /// 求职招募 -> 求职招募
-  /// 杂项 -> 主页
-  /// 其他 -> 其他
+  /// 显示名称分区列表（对齐 web `CONTENT_PARTITIONS`）
+  /// 旧版「院务 / 课程交流 / 打听求助 / 日常吐槽 / 求职招募」已经不再有数据，
+  /// 继续保留只会让用户看到空列表，因此切到当前内容分区。
+  /// 「教师」保留为 app 特有入口，复用课程专区数据。
   final List<String> _displayPartitions = <String>[
     '主页',
-    '院务',
+    '打分',
     '教师',
-    '课程',
-    '学习解惑',
-    '打听求助',
-    '随想随记',
-    '求职招募',
+    '学习交流',
+    '生活日常',
+    '社团活动',
+    '实习就业',
+    '期末资料',
+    '宿舍生活',
+    '技术分享',
+    '课程专区',
+    '组团捞人',
     '其他',
   ];
 
   /// 显示名称 -> API 名称
   final Map<String, String> _displayToApiPartition = <String, String>{
     '主页': '主页',
-    '院务': '院务',
+    '打分': '打分',
     '教师': '课程专区',
-    '课程': '课程交流',
-    '学习解惑': '学习交流',
-    '打听求助': '打听求助',
-    '随想随记': '日常吐槽',
-    '求职招募': '求职招募',
+    '学习交流': '学习交流',
+    '生活日常': '生活日常',
+    '社团活动': '社团活动',
+    '实习就业': '实习就业',
+    '期末资料': '期末资料',
+    '宿舍生活': '宿舍生活',
+    '技术分享': '技术分享',
+    '课程专区': '课程专区',
+    '组团捞人': '组团捞人',
     '其他': '其他',
   };
 
@@ -110,8 +128,9 @@ class HomePageState extends State<HomePage> {
   final PageController _pageController = PageController();
   final ScrollController _tabScrollController = ScrollController();
   final Map<String, GlobalKey> _tabKeys = {};
-  final GlobalKey _headerKey = GlobalKey();
-  double _headerHeight = 0;
+  final Map<String, ScrollController> _scrollControllers = {};
+  Timer? _autoRefreshTimer;
+  bool _autoRefreshing = false;
 
   String get _currentDisplayPartition =>
       _displayPartitions[_currentPartitionIndex];
@@ -121,18 +140,26 @@ class HomePageState extends State<HomePage> {
     super.initState();
     for (final entry in _displayToApiPartition.entries) {
       _partitionStates[entry.value] = _PartitionState();
+      _scrollControllers[entry.value] = ScrollController();
     }
     // 初始化每个 tab 的 GlobalKey
     for (final p in _displayPartitions) {
       _tabKeys[p] = GlobalKey();
     }
     _loadUserAndInitialPosts();
+    // 首页自动更新：不再等用户手动刷新，每分钟静默拉一次最新列表。
+    _autoRefreshTimer =
+        Timer.periodic(const Duration(seconds: 60), (_) => _autoRefresh());
   }
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _pageController.dispose();
     _tabScrollController.dispose();
+    for (final controller in _scrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -143,6 +170,60 @@ class HomePageState extends State<HomePage> {
   /// 静默后台刷新（不清空列表，检测新内容）
   Future<void> silentRefresh() async {
     await _fetchPosts(refresh: true, silent: true);
+  }
+
+  /// 自动刷新当前分区：
+  /// - 用户在列表顶部时直接换上最新一页（真正的自动更新）；
+  /// - 用户正在往下看时不打断位置，只显示「N 条新内容」提示条。
+  Future<void> _autoRefresh() async {
+    if (!mounted || _autoRefreshing) return;
+    final displayPartition = _currentDisplayPartition;
+    // 打分/教师为独立嵌入页，各自有加载逻辑。
+    if (displayPartition == '打分' || displayPartition == '教师') return;
+    final apiPartition =
+        _displayToApiPartition[displayPartition] ?? displayPartition;
+    final state = _partitionStates[apiPartition];
+    if (state == null || !state.hasLoadedOnce || state.isLoading) return;
+
+    _autoRefreshing = true;
+    try {
+      final params = GetPostsParams(
+        limit: _pageSize,
+        offset: 0,
+        partition: apiPartition,
+        searchsort: 'home',
+        searchinfo: _searchText,
+        userTelephone: _user.phone,
+        tag: '',
+      );
+      final list = await widget.apiService.getPosts(params);
+      if (!mounted) return;
+      final existingIds = state.posts.map((p) => p.id).toSet();
+      final newCount = list.where((p) => !existingIds.contains(p.id)).length;
+      if (newCount == 0) return;
+
+      final scroll = _scrollControllers[apiPartition];
+      final atTop =
+          scroll == null || !scroll.hasClients || scroll.offset <= 24;
+      if (atTop) {
+        setState(() {
+          state.posts = list;
+          state.offset = list.length;
+          state.hasMore = list.length == _pageSize;
+          state.hasLoadedOnce = true;
+          state.newPostsCount = 0;
+        });
+        if (apiPartition == _currentApiPartition) {
+          _saveCachedPosts(list);
+        }
+      } else {
+        setState(() => state.newPostsCount = newCount);
+      }
+    } catch (e) {
+      debugPrint('自动刷新失败: $e');
+    } finally {
+      _autoRefreshing = false;
+    }
   }
 
   /// 从本地缓存加载帖子列表
@@ -356,56 +437,55 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final layoutConfig = LayoutConfig.of(context);
-    final showAvatar = layoutConfig != null
-        ? !layoutConfig.isDesktop
-        : widget.showHeaderAvatar;
-    final showAddButton = layoutConfig != null
-        ? !layoutConfig.isDesktop
-        : widget.showHeaderAddButton;
-    final fallbackHeaderHeight = _calculateHeaderHeight(context,
-        showAvatar: showAvatar, showAddButton: showAddButton);
-    final headerHeight =
-        _headerHeight > 0 ? _headerHeight : fallbackHeaderHeight;
+    return MiniProgramPullDownHost(
+      topOffset: 0,
+      onOpenChanged: widget.onPanelOpenChanged,
+      panelBuilder: (context, close) => MiniProgramPanel(onClose: close),
+      // 头部 + 标签栏 + 列表作为一个整体：下拉时一起下移，
+      // 小程序面板在下面像抽屉一样被拉开，展开后占满整屏。
+      child: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              itemCount: _displayPartitions.length,
+              itemBuilder: (context, index) {
+                final partition = _displayPartitions[index];
 
-    return Stack(
-      children: [
-        // Content Layer
-        Positioned.fill(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: _displayPartitions.length,
-            itemBuilder: (context, index) {
-              final partition = _displayPartitions[index];
+                // 打分分区：嵌入打分列表（新版 /auth/rating/*）
+                if (partition == '打分') {
+                  final layoutConfig = LayoutConfig.of(context);
+                  return ScorePage(
+                    apiService: widget.apiService,
+                    embedded: true,
+                    embeddedTopPadding: 0,
+                    onPostTap: layoutConfig?.onPostTap,
+                  );
+                }
 
-              // 教师分区使用独立页面
-              if (partition == '教师') {
-                final layoutConfig = LayoutConfig.of(context);
-                final onPostTap = layoutConfig?.onPostTap ?? widget.onPostTap;
-                // TeacherPage handles its own scrolling but needs padding to not be hidden by header
-                return TeacherPage(
-                  apiService: widget.apiService,
-                  onPostTap: onPostTap,
-                  contentPadding: EdgeInsets.only(top: headerHeight),
-                );
-              }
+                // 教师分区使用独立页面
+                if (partition == '教师') {
+                  final layoutConfig = LayoutConfig.of(context);
+                  final onPostTap = layoutConfig?.onPostTap ?? widget.onPostTap;
+                  return TeacherPage(
+                    apiService: widget.apiService,
+                    onPostTap: onPostTap,
+                    contentPadding: EdgeInsets.zero,
+                  );
+                }
 
-              final apiPartition =
-                  _displayToApiPartition[partition] ?? partition;
-              final state = _partitionStates[apiPartition] ?? _PartitionState();
-              return _buildPostList(state, partition, headerHeight);
-            },
+                final apiPartition =
+                    _displayToApiPartition[partition] ?? partition;
+                final state =
+                    _partitionStates[apiPartition] ?? _PartitionState();
+                return _buildPostList(state, partition, 0);
+              },
+            ),
           ),
-        ),
-        // Header Layer (Blurred)
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: _buildHeader(context),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -435,141 +515,137 @@ class HomePageState extends State<HomePage> {
 
     return Container(
       color: context.backgroundColor, // Use consistent background color
-      child: RefreshIndicator(
-        edgeOffset: topPadding, // Ensure RefreshIndicator appears below header
-        onRefresh: () => _fetchPosts(refresh: true),
-        color: AppColors.primary,
-        backgroundColor: context.surfaceColor,
-        child: Stack(
-          children: [
-            ListView.builder(
-              padding: EdgeInsets.only(
-                  top: topPadding + 8, bottom: bottomPadding + 16),
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: state.posts.length + 1,
-              itemBuilder: (context, index) {
-                // 检查是否需要加载更多
-                if (index == state.posts.length) {
-                  if (state.hasMore && !state.isLoading) {
-                    Future.microtask(() => _fetchPosts(refresh: false));
-                  }
-
-                  // 底部提示
-                  if (state.isLoading && !state.isRefreshing) {
-                    return _buildLoadMoreIndicator();
-                  }
-                  if (!state.hasMore && state.posts.isNotEmpty) {
-                    return _buildNoMoreData();
-                  }
-                  return const SizedBox.shrink();
+      child: Stack(
+        children: [
+          ListView.builder(
+            controller: _scrollControllers[apiPartition],
+            padding: EdgeInsets.only(
+                top: topPadding + 8, bottom: bottomPadding + 16),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: state.posts.length + 1,
+            itemBuilder: (context, index) {
+              // 检查是否需要加载更多
+              if (index == state.posts.length) {
+                if (state.hasMore && !state.isLoading) {
+                  Future.microtask(() => _fetchPosts(refresh: false));
                 }
 
-                final post = state.posts[index];
-                return PostCard(
-                  post: post,
-                  isDense: isDense,
-                  onAvatarTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => UserProfilePage(
-                          apiService: widget.apiService,
-                          userId: 0,
-                          userPhone: post.authorPhone,
-                        ),
-                      ),
-                    );
-                  },
-                  onTap: () async {
-                    // 添加到浏览历史（在点击时记录）
-                    final postWithPartition = PostModel(
-                      id: post.id,
-                      title: post.title,
-                      content: post.content,
-                      partition: apiPartition, // 使用 API 分区名
-                      authorName: post.authorName,
-                      authorAvatar: post.authorAvatar,
-                      authorPhone: post.authorPhone,
-                      createdAt: post.createdAt,
-                      likeCount: post.likeCount,
-                      commentCount: post.commentCount,
-                      saveCount: post.saveCount,
-                      viewCount: post.viewCount,
-                      userScore: post.userScore,
-                      userIdentity: post.userIdentity,
-                      isLiked: post.isLiked,
-                      isSaved: post.isSaved,
-                      rating: post.rating,
-                      stars: post.stars,
-                      userRating: post.userRating,
-                      heat: post.heat,
-                    );
-                    BrowseHistoryService().addPostHistory(postWithPartition);
+                // 底部提示
+                if (state.isLoading && !state.isRefreshing) {
+                  return _buildLoadMoreIndicator();
+                }
+                if (!state.hasMore && state.posts.isNotEmpty) {
+                  return _buildNoMoreData();
+                }
+                return const SizedBox.shrink();
+              }
 
-                    if (onPostTap != null) {
-                      onPostTap(post.id);
-                      return;
-                    }
-                    final result =
-                        await Navigator.of(context).push<Map<String, dynamic>?>(
-                      MaterialPageRoute(
-                        builder: (_) => PostDetailPage(
-                          postId: post.id,
-                          apiService: widget.apiService,
-                          initialPost: post, // 传递初始数据，优化加载体验
-                        ),
+              final post = state.posts[index];
+              return PostCard(
+                post: post,
+                isDense: isDense,
+                onAvatarTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => UserProfilePage(
+                        apiService: widget.apiService,
+                        userId: 0,
+                        userPhone: post.authorPhone,
                       ),
-                    );
-                    // 处理返回的数据
-                    if (result != null) {
-                      if (result['deleted'] == true) {
-                        // 删除帖子：从列表中移除
-                        setState(() {
-                          state.posts.removeWhere((p) => p.id == post.id);
-                        });
-                      } else {
-                        // 更新点赞状态
-                        final newIsLiked = result['isLiked'] as bool?;
-                        final newLikeCount = result['likeCount'] as int?;
-                        if (newIsLiked != null && newLikeCount != null) {
-                          final idx =
-                              state.posts.indexWhere((p) => p.id == post.id);
-                          if (idx != -1) {
-                            setState(() {
-                              state.posts[idx] = state.posts[idx].copyWithLike(
-                                isLiked: newIsLiked,
-                                likeCount: newLikeCount,
-                              );
-                            });
-                          }
+                    ),
+                  );
+                },
+                onTap: () async {
+                  // 添加到浏览历史（在点击时记录）
+                  final postWithPartition = PostModel(
+                    id: post.id,
+                    title: post.title,
+                    content: post.content,
+                    partition: apiPartition, // 使用 API 分区名
+                    authorName: post.authorName,
+                    authorAvatar: post.authorAvatar,
+                    authorPhone: post.authorPhone,
+                    createdAt: post.createdAt,
+                    likeCount: post.likeCount,
+                    commentCount: post.commentCount,
+                    saveCount: post.saveCount,
+                    viewCount: post.viewCount,
+                    userScore: post.userScore,
+                    userIdentity: post.userIdentity,
+                    isLiked: post.isLiked,
+                    isSaved: post.isSaved,
+                    rating: post.rating,
+                    stars: post.stars,
+                    userRating: post.userRating,
+                    heat: post.heat,
+                    coinCount: post.coinCount,
+                    myCoins: post.myCoins,
+                  );
+                  BrowseHistoryService().addPostHistory(postWithPartition);
+
+                  if (onPostTap != null) {
+                    onPostTap(post.id);
+                    return;
+                  }
+                  final result =
+                      await Navigator.of(context).push<Map<String, dynamic>?>(
+                    MaterialPageRoute(
+                      builder: (_) => PostDetailPage(
+                        postId: post.id,
+                        apiService: widget.apiService,
+                        initialPost: post, // 传递初始数据，优化加载体验
+                      ),
+                    ),
+                  );
+                  // 处理返回的数据
+                  if (result != null) {
+                    if (result['deleted'] == true) {
+                      // 删除帖子：从列表中移除
+                      setState(() {
+                        state.posts.removeWhere((p) => p.id == post.id);
+                      });
+                    } else {
+                      // 更新点赞状态
+                      final newIsLiked = result['isLiked'] as bool?;
+                      final newLikeCount = result['likeCount'] as int?;
+                      if (newIsLiked != null && newLikeCount != null) {
+                        final idx =
+                            state.posts.indexWhere((p) => p.id == post.id);
+                        if (idx != -1) {
+                          setState(() {
+                            state.posts[idx] = state.posts[idx].copyWithLike(
+                              isLiked: newIsLiked,
+                              likeCount: newLikeCount,
+                            );
+                          });
                         }
                       }
                     }
-                  },
-                  onLikeTap: () async {
-                    return await widget.apiService
-                        .likePost(post.id, _user.phone);
-                  },
-                );
-              },
+                  }
+                },
+                onLikeTap: () async {
+                  return await widget.apiService.likePost(post.id, _user.phone);
+                },
+              );
+            },
+          ),
+          // 下拉刷新时顶部显示 Loading
+          if (state.isRefreshing && state.posts.isNotEmpty)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildRefreshingIndicator(),
             ),
-            // 下拉刷新时顶部显示 Loading
-            if (state.isRefreshing && state.posts.isNotEmpty)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildRefreshingIndicator(),
-              ),
-            // 新帖子提示条
-            if (state.newPostsCount > 0)
-              Positioned(
-                top: 8,
-                left: 0,
-                right: 0,
-                child: _buildNewPostsIndicator(state.newPostsCount),
-              ),
-          ],
-        ),
+          // 新帖子提示条
+          if (state.newPostsCount > 0)
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: _buildNewPostsIndicator(state.newPostsCount),
+            ),
+        ],
       ),
     );
   }
@@ -669,8 +745,6 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateHeaderHeight());
-
     final layoutConfig = LayoutConfig.of(context);
     final onPostTap = layoutConfig?.onPostTap ?? widget.onPostTap;
     final showAvatar = layoutConfig != null
@@ -680,9 +754,7 @@ class HomePageState extends State<HomePage> {
         ? !layoutConfig.isDesktop
         : widget.showHeaderAddButton;
 
-    return SizedBox(
-      key: _headerKey,
-      child: HomeHeader(
+    return HomeHeader(
         user: _user,
         showAvatar: showAvatar,
         showAddButton: showAddButton,
@@ -704,10 +776,19 @@ class HomePageState extends State<HomePage> {
             ),
           );
         },
+        // 移动端靠自动刷新/下拉手势，不再占用头部空间放刷新按钮。
+        onRefreshTap:
+            showAvatar ? null : () => _fetchPosts(refresh: true),
+        // 桌面端（Windows / Linux / 平板多栏）没有触摸下拉，补一个显式入口。
+        onMiniProgramsTap: !showAvatar ? widget.onMiniProgramsPullDown : null,
+        onXiaoQiuTap: widget.onXiaoQiuTap,
         onAddPostTap: () async {
           final result = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
-              builder: (_) => CreatePostPage(apiService: widget.apiService),
+              builder: (_) => CreatePostPage(
+                apiService: widget.apiService,
+                fromRatingPage: _currentDisplayPartition == '打分',
+              ),
             ),
           );
           // 如果发布成功，刷新当前分区
@@ -715,30 +796,6 @@ class HomePageState extends State<HomePage> {
             _fetchPosts(refresh: true);
           }
         },
-      ),
     );
-  }
-
-  void _updateHeaderHeight() {
-    final context = _headerKey.currentContext;
-    if (context == null) return;
-    final size = context.size;
-    if (size == null) return;
-    final newHeight = size.height;
-    if (newHeight <= 0) return;
-    if ((_headerHeight - newHeight).abs() < 0.5) return;
-    setState(() {
-      _headerHeight = newHeight;
-    });
-  }
-
-  double _calculateHeaderHeight(BuildContext context,
-      {required bool showAvatar, required bool showAddButton}) {
-    final safeTop = MediaQuery.of(context).padding.top;
-    final hasBoth = showAvatar && showAddButton;
-    final verticalPadding = hasBoth ? 8.0 : 16.0;
-    const searchHeight = 36.0;
-    const tabHeight = 36.0;
-    return safeTop + verticalPadding + searchHeight + tabHeight;
   }
 }

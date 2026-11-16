@@ -4,7 +4,13 @@ import 'package:sse_market_x/shared/theme/app_colors.dart';
 
 /// 颜文字小类 key 列表
 const List<String> kKaomojiSubKeys = [
-  'happy', 'sad', 'angry', 'love', 'surprise', 'cute', 'cool',
+  'happy',
+  'sad',
+  'angry',
+  'love',
+  'surprise',
+  'cute',
+  'cool',
 ];
 
 const Map<String, String> kEmojiTabLabels = {
@@ -20,52 +26,228 @@ const Map<String, String> kEmojiTabLabels = {
 
 const Map<String, List<String>> kKaomojis = {
   'happy': [
-    '(´∀｀)', '(￣▽￣)', '(´▽｀)', '(￣ω￣)', '(´ω｀)', '(￣∀￣)',
-    '(๑´ㅂ`๑)', '(｡♥‿♥｡)', '(◕‿◕)', '(*´▽`*)', '(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧',
-    '(＾◡＾)', '(◠‿◠)', '(´꒳`)', '(◡ ω ◡)', '(´｡• ᵕ •｡`)', '(◕ᴗ◕✿)',
-    '(ﾉ◕ヮ◕)ﾉ', '(≧∇≦)', '(＾▽＾)', '(◉‿◉)', '(´∇｀)', '(◕‿◕)♡'
+    '(´∀｀)',
+    '(￣▽￣)',
+    '(´▽｀)',
+    '(￣ω￣)',
+    '(´ω｀)',
+    '(￣∀￣)',
+    '(๑´ㅂ`๑)',
+    '(｡♥‿♥｡)',
+    '(◕‿◕)',
+    '(*´▽`*)',
+    '(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧',
+    '(＾◡＾)',
+    '(◠‿◠)',
+    '(´꒳`)',
+    '(◡ ω ◡)',
+    '(´｡• ᵕ •｡`)',
+    '(◕ᴗ◕✿)',
+    '(ﾉ◕ヮ◕)ﾉ',
+    '(≧∇≦)',
+    '(＾▽＾)',
+    '(◉‿◉)',
+    '(´∇｀)',
+    '(◕‿◕)♡'
   ],
   'sad': [
-    '(´；ω；｀)', '(｡•́︿•̀｡)', '(╥_╥)', '(T_T)', '(;_;)', '(ಥ﹏ಥ)',
-    '(இ﹏இ`｡)', '(┳Д┳)', '(个_个)', '(´-ω-`)', '(｡•́ - •̀｡)',
-    '(╯︵╰)', '(｡╯︵╰｡)', '(´°̥̥̥̥̥̥̥̥ω°̥̥̥̥̥̥̥̥｀)', '(｡•́︿•̀｡)', '(◞‸◟)',
-    '(╥﹏╥)', '(ಥ_ಥ)', '(´；д；`)', '(｡•́︿•̀｡)', '(╯_╰)', '(´Д｀)'
+    '(´；ω；｀)',
+    '(｡•́︿•̀｡)',
+    '(╥_╥)',
+    '(T_T)',
+    '(;_;)',
+    '(ಥ﹏ಥ)',
+    '(இ﹏இ`｡)',
+    '(┳Д┳)',
+    '(个_个)',
+    '(´-ω-`)',
+    '(｡•́ - •̀｡)',
+    '(╯︵╰)',
+    '(｡╯︵╰｡)',
+    '(´°̥̥̥̥̥̥̥̥ω°̥̥̥̥̥̥̥̥｀)',
+    '(｡•́︿•̀｡)',
+    '(◞‸◟)',
+    '(╥﹏╥)',
+    '(ಥ_ಥ)',
+    '(´；д；`)',
+    '(｡•́︿•̀｡)',
+    '(╯_╰)',
+    '(´Д｀)'
   ],
   'angry': [
-    '(╬ಠ益ಠ)', '(ಠ_ಠ)', '(¬_¬)', '(►_►)', '(҂◡_◡)', '(ꐦ°᷄д°᷅)',
-    '(╯°□°）╯︵ ┻━┻', '(ノಠ益ಠ)ノ', '(눈_눈)', '(⋋▂⋌)', '(-_-メ)',
-    '(｀皿´＃)', '(╯‵□′)╯︵┻━┻', '(ﾉ｀Д´)ﾉ彡┻━┻', '(ಠ益ಠ)', '(◣_◢)',
-    '(╬⁽⁽ ⁰ ⁾⁾ Д ⁽⁽ ⁰ ⁾⁾)', '(ﾉ°益°)ﾉ', '(｀ε´)', '(ﾉ｀⌒´)ﾉ┫：・┻┻', '(ﾒ｀ﾛ´)/', '(ﾉ｀□´)ﾉ⌒┻━┻'
+    '(╬ಠ益ಠ)',
+    '(ಠ_ಠ)',
+    '(¬_¬)',
+    '(►_►)',
+    '(҂◡_◡)',
+    '(ꐦ°᷄д°᷅)',
+    '(╯°□°）╯︵ ┻━┻',
+    '(ノಠ益ಠ)ノ',
+    '(눈_눈)',
+    '(⋋▂⋌)',
+    '(-_-メ)',
+    '(｀皿´＃)',
+    '(╯‵□′)╯︵┻━┻',
+    '(ﾉ｀Д´)ﾉ彡┻━┻',
+    '(ಠ益ಠ)',
+    '(◣_◢)',
+    '(╬⁽⁽ ⁰ ⁾⁾ Д ⁽⁽ ⁰ ⁾⁾)',
+    '(ﾉ°益°)ﾉ',
+    '(｀ε´)',
+    '(ﾉ｀⌒´)ﾉ┫：・┻┻',
+    '(ﾒ｀ﾛ´)/',
+    '(ﾉ｀□´)ﾉ⌒┻━┻'
   ],
   'love': [
-    '(｡♥‿♥｡)', '(´∀｀)♡', '(◍•ᴗ•◍)❤', '(｡・//ε//・｡)', '(๑˃̵ᴗ˂̵)و',
-    '(✿◠‿◠)', '(⺣◡⺣)♡*', '(灬º‿º灬)♡', '(ღ˘⌣˘ღ)', '(♥ω♥*)', '(´ε｀ )',
-    '(´∀｀)♡', '(◕‿◕)♡', '(｡♥‿♥｡)', '(◍•ᴗ•◍)♡', '(´｡• ω •｡`) ♡',
-    '(◡ ‿ ◡)♡', '(´∀｀)♡', '(◕ᴗ◕)♡', '(◍•ᴗ•◍)❤', '(´♡‿♡`)', '(◕‿◕)♡'
+    '(｡♥‿♥｡)',
+    '(´∀｀)♡',
+    '(◍•ᴗ•◍)❤',
+    '(｡・//ε//・｡)',
+    '(๑˃̵ᴗ˂̵)و',
+    '(✿◠‿◠)',
+    '(⺣◡⺣)♡*',
+    '(灬º‿º灬)♡',
+    '(ღ˘⌣˘ღ)',
+    '(♥ω♥*)',
+    '(´ε｀ )',
+    '(´∀｀)♡',
+    '(◕‿◕)♡',
+    '(｡♥‿♥｡)',
+    '(◍•ᴗ•◍)♡',
+    '(´｡• ω •｡`) ♡',
+    '(◡ ‿ ◡)♡',
+    '(´∀｀)♡',
+    '(◕ᴗ◕)♡',
+    '(◍•ᴗ•◍)❤',
+    '(´♡‿♡`)',
+    '(◕‿◕)♡'
   ],
   'surprise': [
-    '(゜o゜;)', '(O_O)', '(⊙_⊙)', '(°ロ°)', '(◎_◎;)', '(✪ω✪)',
-    '(⊙ω⊙)', '(◉_◉)', '(°△°|||)', '(☉_☉)', '(ʘᗩʘ)',
-    '(⊙０⊙)', '(◉０◉)', '(°o°)', '(⊙.⊙)', '(◎０◎)', '(°□°)',
-    '(⊙▽⊙)', '(◉‿◉)', '(°▽°)', '(⊙ω⊙)', '(◎_◎)', '(°０°)'
+    '(゜o゜;)',
+    '(O_O)',
+    '(⊙_⊙)',
+    '(°ロ°)',
+    '(◎_◎;)',
+    '(✪ω✪)',
+    '(⊙ω⊙)',
+    '(◉_◉)',
+    '(°△°|||)',
+    '(☉_☉)',
+    '(ʘᗩʘ)',
+    '(⊙０⊙)',
+    '(◉０◉)',
+    '(°o°)',
+    '(⊙.⊙)',
+    '(◎０◎)',
+    '(°□°)',
+    '(⊙▽⊙)',
+    '(◉‿◉)',
+    '(°▽°)',
+    '(⊙ω⊙)',
+    '(◎_◎)',
+    '(°０°)'
   ],
   'emoji': [
-    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊',
-    '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛',
-    '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑',
-    '😶', '😏', '😒', '🙄', '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒'
+    '😀',
+    '😃',
+    '😄',
+    '😁',
+    '😆',
+    '😅',
+    '🤣',
+    '😂',
+    '🙂',
+    '🙃',
+    '😉',
+    '😊',
+    '😇',
+    '🥰',
+    '😍',
+    '🤩',
+    '😘',
+    '😗',
+    '☺️',
+    '😚',
+    '😙',
+    '🥲',
+    '😋',
+    '😛',
+    '😜',
+    '🤪',
+    '😝',
+    '🤑',
+    '🤗',
+    '🤭',
+    '🤫',
+    '🤔',
+    '🤐',
+    '🤨',
+    '😐',
+    '😑',
+    '😶',
+    '😏',
+    '😒',
+    '🙄',
+    '😬',
+    '🤥',
+    '😔',
+    '😪',
+    '🤤',
+    '😴',
+    '😷',
+    '🤒'
   ],
   'cute': [
-    '(◕‿◕)', '(◡ ω ◡)', '(´｡• ᵕ •｡`)', '(◕ᴗ◕✿)', '(´꒳`)', '(◠‿◠)',
-    '(｡◕‿◕｡)', '(◕‿◕)♡', '(◍•ᴗ•◍)', '(´∀｀)', '(◡‿◡)', '(◕ω◕)',
-    '(◉‿◉)', '(◕‿◕)✿', '(◍•ᴗ•◍)✧*', '(◕‿◕)♪', '(◡ ‿ ◡)', '(◕‿◕)☆',
-    '(◍•ᴗ•◍)♡', '(◕‿◕)♫', '(◡ ω ◡)♡', '(◕‿◕)✨', '(◍•ᴗ•◍)♪', '(◕‿◕)♬'
+    '(◕‿◕)',
+    '(◡ ω ◡)',
+    '(´｡• ᵕ •｡`)',
+    '(◕ᴗ◕✿)',
+    '(´꒳`)',
+    '(◠‿◠)',
+    '(｡◕‿◕｡)',
+    '(◕‿◕)♡',
+    '(◍•ᴗ•◍)',
+    '(´∀｀)',
+    '(◡‿◡)',
+    '(◕ω◕)',
+    '(◉‿◉)',
+    '(◕‿◕)✿',
+    '(◍•ᴗ•◍)✧*',
+    '(◕‿◕)♪',
+    '(◡ ‿ ◡)',
+    '(◕‿◕)☆',
+    '(◍•ᴗ•◍)♡',
+    '(◕‿◕)♫',
+    '(◡ ω ◡)♡',
+    '(◕‿◕)✨',
+    '(◍•ᴗ•◍)♪',
+    '(◕‿◕)♬'
   ],
   'cool': [
-    '(⌐■_■)', '(▀̿Ĺ̯▀̿ ̿)', '(◣_◢)', '(¬‿¬)', '(ಠ_ಠ)', '(¬_¬)',
-    '(►_►)', '(◉_◉)', '(⊙_⊙)', '(◎_◎)', '(°_°)', '(-_-)',
-    '(¯\\_(ツ)_/¯)', '(╯°□°）╯', '(ಠ益ಠ)', '(◣_◢)', '(⌐■_■)',
-    '(▀̿Ĺ̯▀̿ ̿)', '(¬‿¬)', '(ಠ_ಠ)', '(¬_¬)', '(►_►)', '(◉_◉)', '(⊙_⊙)'
+    '(⌐■_■)',
+    '(▀̿Ĺ̯▀̿ ̿)',
+    '(◣_◢)',
+    '(¬‿¬)',
+    '(ಠ_ಠ)',
+    '(¬_¬)',
+    '(►_►)',
+    '(◉_◉)',
+    '(⊙_⊙)',
+    '(◎_◎)',
+    '(°_°)',
+    '(-_-)',
+    '(¯\\_(ツ)_/¯)',
+    '(╯°□°）╯',
+    '(ಠ益ಠ)',
+    '(◣_◢)',
+    '(⌐■_■)',
+    '(▀̿Ĺ̯▀̿ ̿)',
+    '(¬‿¬)',
+    '(ಠ_ಠ)',
+    '(¬_¬)',
+    '(►_►)',
+    '(◉_◉)',
+    '(⊙_⊙)'
   ],
 };
 
@@ -94,7 +276,8 @@ class _EmojiCell extends StatefulWidget {
   State<_EmojiCell> createState() => _EmojiCellState();
 }
 
-class _EmojiCellState extends State<_EmojiCell> with SingleTickerProviderStateMixin {
+class _EmojiCellState extends State<_EmojiCell>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scale;
 
@@ -208,9 +391,8 @@ class EmojiGridContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final containerBg = isDark
-        ? const Color(0xFF1C1C1E)
-        : const Color(0xFFF2F2F7);
+    final containerBg =
+        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
 
     return Container(
       height: height,
@@ -296,6 +478,7 @@ class EmojiGridContent extends StatelessWidget {
 /// 用于评论输入、消息界面等，统一数据与样式，便于维护。
 class EmojiSelectorPanel extends StatefulWidget {
   final ValueChanged<String> onEmojiSelected;
+
   /// 选中后是否触发关闭（如评论里选中即关 overlay，消息里可选关）
   final VoidCallback? onClose;
 
@@ -316,8 +499,10 @@ class _EmojiSelectorPanelState extends State<EmojiSelectorPanel> {
   late PageController _pageController;
   int _currentPage = 0;
 
-  String get _emojiMainCategory => _currentPage < _emojiPageIndex ? 'kaomoji' : 'emoji';
-  String get _kaomojiSubCategory => kKaomojiSubKeys[_currentPage.clamp(0, kKaomojiSubKeys.length - 1)];
+  String get _emojiMainCategory =>
+      _currentPage < _emojiPageIndex ? 'kaomoji' : 'emoji';
+  String get _kaomojiSubCategory =>
+      kKaomojiSubKeys[_currentPage.clamp(0, kKaomojiSubKeys.length - 1)];
 
   @override
   void initState() {
@@ -358,7 +543,9 @@ class _EmojiSelectorPanelState extends State<EmojiSelectorPanel> {
             segments: const ['kaomoji', 'emoji'],
             selectedSegment: _emojiMainCategory,
             onSegmentChanged: (v) {
-              final index = v == 'emoji' ? _emojiPageIndex : (_currentPage < _emojiPageIndex ? _currentPage : 0);
+              final index = v == 'emoji'
+                  ? _emojiPageIndex
+                  : (_currentPage < _emojiPageIndex ? _currentPage : 0);
               setState(() => _currentPage = index);
               _pageController.jumpToPage(index);
             },
@@ -473,7 +660,8 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
     if (_isDisposed) return;
     _removeOverlay();
 
-    final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? renderBox =
+        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final position = renderBox.localToGlobal(Offset.zero);
@@ -565,8 +753,8 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
       child: IconButton(
         onPressed: _toggleOverlay,
         icon: Icon(Icons.emoji_emotions_outlined, size: widget.size * 0.5),
-        color: isActive 
-            ? (widget.activeColor ?? AppColors.primary) 
+        color: isActive
+            ? (widget.activeColor ?? AppColors.primary)
             : (widget.inactiveColor ?? context.textSecondaryColor),
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
